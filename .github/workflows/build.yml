@@ -77,7 +77,8 @@ jobs:
           tag: ${{ env.NEXT_VER_CODE }}
           body: ${{ steps.get_output.outputs.BUILD_LOG }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./target/release/
+          file: |
+            Zed-windows-amd64.exe
           overwrite: true
 
       - uses: stefanzweifel/git-auto-commit-action@v5
