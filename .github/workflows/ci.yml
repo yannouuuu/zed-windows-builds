@@ -19,7 +19,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "BUILD_NEEDED=true" >> $GITHUB_ENV
 
       - name: Clear older runs
         env:
