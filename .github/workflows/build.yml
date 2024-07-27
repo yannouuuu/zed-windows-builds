@@ -65,7 +65,7 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           release_name: Zed Windows - ${{ env.RELEASE_NAME }}
-          tag: ${{ env.NEXT_VER_CODE }
+          tag: ${{ env.NEXT_VER_CODE }}
           body: ${{ steps.get_output.outputs.BUILD_LOG }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./build/*
