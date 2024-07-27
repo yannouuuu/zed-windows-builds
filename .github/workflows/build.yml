@@ -30,7 +30,7 @@ jobs:
             C:\Users\runneradmin\.cargo\git\
             C:\Users\runneradmin\.rustup\
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - run: cargo build --release -j 4 --frozen 
+      - run: cargo build --release -j 4
       - run: copy target\release\Zed.exe target\release\Zed-windows-amd64.exe
 
       - name: Rename executable with version
