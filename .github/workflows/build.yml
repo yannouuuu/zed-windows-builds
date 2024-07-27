@@ -42,6 +42,7 @@ jobs:
           name: Zed-windows-amd64-${{ env.NEXT_VER_CODE }}
           path: target\release\Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
 
+
   upload-to-release:
     runs-on: ubuntu-latest
     needs: [build-windows-amd64]
@@ -50,13 +51,18 @@ jobs:
         with:
           pattern: Zed-*
           merge-multiple: true
-      
+
+      - name: Get latest zed version tag
+        id: next_ver_code
+        run: |
+          LATEST_TAG=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/latest | jq -r .tag_name)
+          echo "NEXT_VER_CODE=$LATEST_TAG" >> $GITHUB_ENV
+
       - name: Get latest Zed release info
         id: zed_release
         run: |
           RELEASE_INFO=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/latest)
-          RELEASE_BODY=$(echo "$RELEASE_INFO" | jq -r '.body | @base64')
-          echo "RELEASE_BODY=$RELEASE_BODY" >> $GITHUB_OUTPUT
+          echo "RELEASE_BODY=$(echo $RELEASE_INFO | jq -r .body)" >> $GITHUB_OUTPUT
 
       - name: Set release info
         run: |
