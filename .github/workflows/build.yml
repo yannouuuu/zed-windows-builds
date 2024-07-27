@@ -81,6 +81,5 @@ jobs:
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
           branch: update
-          skip_checkout: true
           file_pattern: build.md *-update.json
           commit_message: Bump version ${{ env.NEXT_VER_CODE }}
