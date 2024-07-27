@@ -29,10 +29,16 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - run: cargo build --release
       - run: copy target\release\Zed.exe target\release\Zed-windows-amd64.exe
+
+      - name: Rename executable with version
+        run: |
+          move target\release\Zed-windows-amd64.exe target\release\Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
+
       - uses: actions/upload-artifact@v4
         with:
-          name: Zed-windows-amd64
-          path: target\release\Zed-windows-amd64.exe
+          name: Zed-windows-amd64-${{ env.NEXT_VER_CODE }}
+          path: target\release\Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
+
 
   upload-to-release:
     runs-on: ubuntu-latest
@@ -43,39 +49,36 @@ jobs:
           pattern: Zed-*
           merge-multiple: true
 
-      - name: Get current date
-        id: get_date
-        run: |
-          echo "DATE=$(date +'%m-%d-%Y')" >> $GITHUB_ENV
-
-      - name: Set next version tag
+      - name: Get latest zed version tag
         id: next_ver_code
         run: |
           LATEST_TAG=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/latest | jq -r .tag_name)
           echo "NEXT_VER_CODE=$LATEST_TAG" >> $GITHUB_ENV
 
-      - name: List build artifacts
+      - name: Get latest Zed release info
+        id: zed_release
         run: |
-            echo "Contents of current directory:"
-            ls -R
+          RELEASE_INFO=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/latest)
+          echo "RELEASE_BODY=$(echo $RELEASE_INFO | jq -r .body)" >> $GITHUB_OUTPUT
 
       - name: Set release info
         run: |
           if [[ "${{ github.event.release.prerelease }}" == "true" ]]; then
-            echo "RELEASE_NAME=Zed Windows Prerelease - ${{ env.DATE }}" >> $GITHUB_ENV
+            echo "RELEASE_NAME=Zed Windows Prerelease 🎉 ${{ env.NEXT_VER_CODE }}" >> $GITHUB_ENV
             echo "NEXT_VER_CODE=pre-${{ env.NEXT_VER_CODE }}" >> $GITHUB_ENV
           else
-            echo "RELEASE_NAME=Zed Windows - ${{ env.DATE }}" >> $GITHUB_ENV
+            echo "RELEASE_NAME=Zed Windows 🎉 ${{ env.NEXT_VER_CODE }}" >> $GITHUB_ENV
+            echo "NEXT_VER_CODE=${{ env.NEXT_VER_CODE }}" >> $GITHUB_ENV
           fi
       
       - name: Upload modules to release
         uses: svenstaro/upload-release-action@v2
         with:
-          release_name: Zed Windows - ${{ env.RELEASE_NAME }}
+          release_name: ${{ env.RELEASE_NAME }}
           tag: ${{ env.NEXT_VER_CODE }}
-          body: ${{ steps.get_output.outputs.BUILD_LOG }}
+          body: ${{ steps.zed_release.outputs.RELEASE_BODY }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: Zed-windows-amd64.exe
+          file: Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
           overwrite: true
 
       - uses: actions/checkout@v4
