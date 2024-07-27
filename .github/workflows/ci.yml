@@ -1,7 +1,7 @@
 name: CI
 on:
-  schedule:
-    - cron: "30 16 * * *"
+  release:
+    types: [published, edited]
 
 jobs:
   check:
