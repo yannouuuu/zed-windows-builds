@@ -19,6 +19,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "BUILD_NEEDED=true" >> $GITHUB_ENV
 
       - name: Clear older runs
         env:
@@ -26,6 +27,7 @@ jobs:
         run: |
 
   build:
+    if: ${{ env.BUILD_NEEDED == 'true' }}
     permissions: write-all
     needs: check
     uses: ./.github/workflows/build.yml
