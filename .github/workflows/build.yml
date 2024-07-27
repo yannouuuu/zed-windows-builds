@@ -48,6 +48,10 @@ jobs:
         run: |
           echo "DATE=$(date +'%m-%d-%Y')" >> $GITHUB_ENV
 
+      - name: Set next version tag
+        id: next_ver_code
+        run: echo "NEXT_VER_CODE=v1.0.0" >> $GITHUB_ENV
+
       - name: Upload modules to release
         uses: svenstaro/upload-release-action@v2
         with:
@@ -55,14 +59,13 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./build/*
           release_name: Zed Windows - ${{ env.DATE }} 
-          tag: ${{ steps.next_ver_code.outputs.NEXT_VER_CODE }}
+          tag: ${{ env.NEXT_VER_CODE }}
           file_glob: true
           overwrite: true
-
 
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
           branch: update
           skip_checkout: true
           file_pattern: build.md *-update.json
-          commit_message: Bump version ${{ steps.next_ver_code.outputs.NEXT_VER_CODE }}
+          commit_message: Bump version ${{ env.NEXT_VER_CODE }}
