@@ -58,8 +58,6 @@ jobs:
         run: |
             echo "Contents of current directory:"
             ls -R
-            echo "Contents of target directory:"
-            ls -R target/
 
       - name: Set release info
         run: |
@@ -77,8 +75,7 @@ jobs:
           tag: ${{ env.NEXT_VER_CODE }}
           body: ${{ steps.get_output.outputs.BUILD_LOG }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: |
-            Zed-windows-amd64.exe
+          file: Zed-windows-amd64.exe
           overwrite: true
 
       - uses: stefanzweifel/git-auto-commit-action@v5
