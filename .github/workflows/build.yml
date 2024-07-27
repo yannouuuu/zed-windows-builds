@@ -54,6 +54,13 @@ jobs:
           LATEST_TAG=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/latest | jq -r .tag_name)
           echo "NEXT_VER_CODE=$LATEST_TAG" >> $GITHUB_ENV
 
+      - name: List build artifacts
+        run: |
+            echo "Contents of current directory:"
+            ls -R
+            echo "Contents of target directory:"
+            ls -R target/
+
       - name: Set release info
         run: |
           if [[ "${{ github.event.release.prerelease }}" == "true" ]]; then
