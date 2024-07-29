@@ -70,6 +70,13 @@ jobs:
         run: |
           LATEST_TAG=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/latest | jq -r .tag_name)
           echo "NEXT_VER_CODE=$LATEST_TAG" >> $GITHUB_ENV
+          VERSION=${{ env.NEXT_VER_CODE }}
+          cp target/release/Zed.exe target/release/Zed-windows-amd64-${VERSION}.exe
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Zed-windows-amd64-${{ env.NEXT_VER_CODE }}
+          path: target/release/Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
 
       - name: List build artifacts
         run: |
@@ -93,7 +100,7 @@ jobs:
           tag: ${{ env.NEXT_VER_CODE }}
           body: ${{ env.RELEASE_BODY }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: Zed-windows-amd64.exe
+          file: Zed-windows-amd64${VERSION}.exe
           overwrite: true
 
       - uses: actions/checkout@v4
