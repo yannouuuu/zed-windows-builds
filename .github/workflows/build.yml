@@ -30,6 +30,8 @@ jobs:
             C:\Users\runneradmin\.cargo\git\
             C:\Users\runneradmin\.rustup\
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
       - run: cargo build --release -j 4
       - run: copy target\release\Zed.exe target\release\Zed-windows-amd64.exe
       - uses: actions/upload-artifact@v4
@@ -72,7 +74,7 @@ jobs:
           echo "NEXT_VER_CODE=$LATEST_TAG" >> $GITHUB_ENV
           VERSION=${{ env.NEXT_VER_CODE }}
           cp target/release/Zed.exe target/release/Zed-windows-amd64-${VERSION}.exe
-      
+
       - uses: actions/upload-artifact@v4
         with:
           name: Zed-windows-amd64-${{ env.NEXT_VER_CODE }}
@@ -80,8 +82,8 @@ jobs:
 
       - name: List build artifacts
         run: |
-            echo "Contents of current directory:"
-            ls -R
+          echo "Contents of current directory:"
+          ls -R
 
       - name: Set release info
         run: |
