@@ -50,15 +50,32 @@ jobs:
         id: get_date
         run: |
           echo "DATE=$(date +'%m-%d-%Y')" >> $GITHUB_ENV
+
+      - name: Fetch release body from Zed
+        id: fetch_body
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_DATA=$(curl -s \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            https://api.github.com/repos/zed-industries/zed/releases/latest)
+
+          BODY=$(echo "$RELEASE_DATA" | jq -r .body)
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+          echo "$BODY" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - name: Set next version tag
         id: next_ver_code
         run: |
           LATEST_TAG=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/latest | jq -r .tag_name)
           echo "NEXT_VER_CODE=$LATEST_TAG" >> $GITHUB_ENV
+
       - name: List build artifacts
         run: |
             echo "Contents of current directory:"
             ls -R
+
       - name: Set release info
         run: |
           if [[ "${{ github.event.release.prerelease }}" == "true" ]]; then
@@ -68,13 +85,13 @@ jobs:
             echo "RELEASE_NAME=${{ env.NEXT_VER_CODE }} - ${{ env.DATE }}" >> $GITHUB_ENV
             echo "NEXT_VER_CODE=${{ env.NEXT_VER_CODE }}" >> $GITHUB_ENV
           fi
-      
+
       - name: Upload modules to release
         uses: svenstaro/upload-release-action@v2
         with:
           release_name: ${{ env.RELEASE_NAME }}
           tag: ${{ env.NEXT_VER_CODE }}
-          body: ${{ steps.get_output.outputs.BUILD_LOG }}
+          body: ${{ env.RELEASE_BODY }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: Zed-windows-amd64.exe
           overwrite: true
