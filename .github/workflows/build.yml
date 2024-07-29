@@ -62,10 +62,10 @@ jobs:
       - name: Set release info
         run: |
           if [[ "${{ github.event.release.prerelease }}" == "true" ]]; then
-            echo "RELEASE_NAME=Zed Windows Prerelease - ${{ env.DATE }}" >> $GITHUB_ENV
+            echo "RELEASE_NAME=pre${{ env.NEXT_VER_CODE }} - ${{ env.DATE }}}" >> $GITHUB_ENV
             echo "NEXT_VER_CODE=Pre-${{ env.NEXT_VER_CODE }}" >> $GITHUB_ENV
           else
-            echo "RELEASE_NAME=${{ env.DATE }}" >> $GITHUB_ENV
+            echo "RELEASE_NAME=${{ env.NEXT_VER_CODE }} - ${{ env.DATE }}" >> $GITHUB_ENV
             echo "NEXT_VER_CODE=${{ env.NEXT_VER_CODE }}" >> $GITHUB_ENV
           fi
       
