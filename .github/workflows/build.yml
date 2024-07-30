@@ -42,15 +42,14 @@ jobs:
             echo "Build failed, file does not exist."
             exit 1
           }
-      - name: Set version tag
-        id: set_version
+      - name: Set version tag and rename build output
         run: |
           $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases | Select-Object -First 1).tag_name
-          Write-Output "NEXT_VER_CODE=$latestTag" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "NEXT_VER_CODE=$latestTag" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $newFileName = "Zed-windows-amd64-$latestTag.exe"
+          Rename-Item -Path "target/release/Zed-windows-amd64.exe" -NewName $newFileName
         shell: pwsh
-      - name: Rename build output
-        run: Rename-Item -Path target/release/Zed-windows-amd64.exe -NewName Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
-        shell: pwsh  
+
       - uses: actions/upload-artifact@v4
         with:
           name: Zed-windows-amd64-${{ env.NEXT_VER_CODE }}
@@ -90,20 +89,10 @@ jobs:
           echo "$BODY" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-      - name: Set release info
-        run: |
-          if [[ "${{ github.event.release.prerelease }}" == "true" ]]; then
-            echo "RELEASE_NAME=pre${{ env.NEXT_VER_CODE }} - ${{ env.DATE }}}" >> $GITHUB_ENV
-            echo "NEXT_VER_CODE=Pre-${{ env.NEXT_VER_CODE }}" >> $GITHUB_ENV
-          else
-            echo "RELEASE_NAME=${{ env.NEXT_VER_CODE }} - ${{ env.DATE }}" >> $GITHUB_ENV
-            echo "NEXT_VER_CODE=${{ env.NEXT_VER_CODE }}" >> $GITHUB_ENV
-          fi
-
       - name: Upload modules to release
         uses: svenstaro/upload-release-action@v2
         with:
-          release_name: ${{ env.RELEASE_NAME }}
+          release_name: ${{ env.NEXT_VER_CODE }}
           tag: ${{ env.NEXT_VER_CODE }}
           body: ${{ env.RELEASE_BODY }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
