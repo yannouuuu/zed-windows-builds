@@ -45,7 +45,7 @@ jobs:
       - name: Set version tag
         id: set_version
         run: |
-          $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases/latest).tag_name
+          $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases).tag_name
           Write-Output "NEXT_VER_CODE=$latestTag" | Out-File -FilePath $env:GITHUB_ENV -Append
         shell: pwsh
       - run: Rename-Item -Path target/release/Zed-windows-amd64.exe -NewName Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
@@ -69,6 +69,12 @@ jobs:
         run: |
           echo "DATE=$(date +'%m-%d-%Y')" >> $GITHUB_ENV
 
+      - name: Set version tag
+        id: set_version
+        run: |
+          latestTag=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/ | jq -r .tag_name)
+          echo "NEXT_VER_CODE=${latestTag}" >> $GITHUB_ENV
+
       - name: Fetch release body from Zed
         id: fetch_body
         env:
@@ -76,7 +82,7 @@ jobs:
         run: |
           RELEASE_DATA=$(curl -s \
             -H "Authorization: token $GITHUB_TOKEN" \
-            https://api.github.com/repos/zed-industries/zed/releases/latest)
+            https://api.github.com/repos/zed-industries/zed/releases)
 
           BODY=$(echo "$RELEASE_DATA" | jq -r .body)
           echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
