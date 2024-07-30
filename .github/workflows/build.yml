@@ -26,31 +26,32 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-            C:\Users\runneradmin\.cargo\registry\
-            C:\Users\runneradmin\.cargo\git\
-            C:\Users\runneradmin\.rustup\
+            C:/Users/runneradmin/.cargo/registry/
+            C:/Users/runneradmin/.cargo/git/
+            C:/Users/runneradmin/.rustup/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
       - run: cargo build --release -j 4
-      - run: copy target\release\Zed.exe target\release\Zed-windows-amd64.exe
+      - run: copy target/release/Zed.exe target/release/Zed-windows-amd64.exe
       - run: |
-          if [ -f target\\release\\Zed-windows-amd64.exe ]; then
+          if (Test-Path -Path 'target/release/Zed-windows-amd64.exe') {
             echo "Build successful, file exists."
-          else
+          }
+          else {
             echo "Build failed, file does not exist."
             exit 1
-          fi
+          }
       - name: Set version tag
         id: set_version
         run: |
           LATEST_TAG=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/latest | jq -r .tag_name)
           echo "NEXT_VER_CODE=$LATEST_TAG" >> $GITHUB_ENV
-      - run: rename target\\release\\Zed-windows-amd64.exe target\\release\\Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
+      - run: rename target/release/Zed-windows-amd64.exe target/release/Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
       - uses: actions/upload-artifact@v4
         with:
-          name: Zed-windows-amd64
-          path: target\\release\\zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
+          name: Zed-windows-amd64-${{ env.NEXT_VER_CODE }}
+          path: target/release/Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
 
   upload-to-release:
     runs-on: ubuntu-latest
