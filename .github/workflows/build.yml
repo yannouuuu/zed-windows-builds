@@ -42,17 +42,40 @@ jobs:
             echo "Build failed, file does not exist."
             exit 1
           }
-      - name: Set version tag and rename build output
+      - name: Diagnostic and rename build output
         run: |
+          # Retrieving the last tag
           $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases | Select-Object -First 1).tag_name
+          Write-Host "Latest tag: $latestTag"
+                      
+          # Path definition
+          $sourceDir = "target\release"
+          $sourceName = "Zed.exe"
           $newFileName = "Zed-windows-amd64-$latestTag.exe"
-          $sourcePath = "target\release\Zed.exe"
-          $destinationPath = "target\release\$newFileName"
-      
+          $sourcePath = Join-Path $sourceDir $sourceName
+          $destinationPath = Join-Path $sourceDir $newFileName
+                      
+          # Diagnostic information display
+          Write-Host "Current directory: $(Get-Location)"
+          Write-Host "Source directory exists: $(Test-Path $sourceDir)"
+          Write-Host "Source path: $sourcePath"
+          Write-Host "Source file exists: $(Test-Path $sourcePath)"
+          Write-Host "Destination path: $destinationPath"
+                      
+          # Listing of source directory contents
+          Write-Host "Contents of $sourceDir:"
+          Get-ChildItem $sourceDir | ForEach-Object { Write-Host $_.Name }
+                      
+          # Attempt to rename
           if (Test-Path $sourcePath) {
-              Move-Item -Path $sourcePath -Destination $destinationPath -Force
-              echo "NEXT_VER_CODE=$latestTag" | Out-File -FilePath $env:GITHUB_ENV -Append
-              Write-Host "File renamed successfully to $newFileName"
+              try {
+                  Rename-Item -Path $sourcePath -NewName $newFileName -Force -ErrorAction Stop
+                  Write-Host "File renamed successfully to $newFileName"
+                  echo "NEXT_VER_CODE=$latestTag" | Out-File -FilePath $env:GITHUB_ENV -Append
+              } catch {
+                  Write-Host "Error renaming file: $_"
+                  exit 1
+              }
           } else {
               Write-Host "Error: Source file $sourcePath not found"
               exit 1
