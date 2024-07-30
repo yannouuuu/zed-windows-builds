@@ -45,9 +45,18 @@ jobs:
       - name: Set version tag and rename build output
         run: |
           $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases | Select-Object -First 1).tag_name
-          echo "NEXT_VER_CODE=$latestTag" | Out-File -FilePath $env:GITHUB_ENV -Append
           $newFileName = "Zed-windows-amd64-$latestTag.exe"
-          Rename-Item -Path "target/release/Zed-windows-amd64.exe" -NewName $newFileName
+          $sourcePath = "target\release\Zed.exe"
+          $destinationPath = "target\release\$newFileName"
+      
+          if (Test-Path $sourcePath) {
+              Move-Item -Path $sourcePath -Destination $destinationPath -Force
+              echo "NEXT_VER_CODE=$latestTag" | Out-File -FilePath $env:GITHUB_ENV -Append
+              Write-Host "File renamed successfully to $newFileName"
+          } else {
+              Write-Host "Error: Source file $sourcePath not found"
+              exit 1
+          }
         shell: pwsh
 
       - uses: actions/upload-artifact@v4
