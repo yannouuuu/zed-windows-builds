@@ -48,7 +48,8 @@ jobs:
           $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases/latest).tag_name
           Write-Output "NEXT_VER_CODE=$latestTag" | Out-File -FilePath $env:GITHUB_ENV -Append
         shell: pwsh
-      - run: rename target/release/Zed-windows-amd64.exe target/release/Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
+      - run: Rename-Item -Path target/release/Zed-windows-amd64.exe -NewName Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
+        shell: pwsh      
       - uses: actions/upload-artifact@v4
         with:
           name: Zed-windows-amd64-${{ env.NEXT_VER_CODE }}
