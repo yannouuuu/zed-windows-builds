@@ -52,26 +52,30 @@ jobs:
           $sourceDir = "target\release"
           $sourceName = "Zed.exe"
           $newFileName = "Zed-windows-amd64-$latestTag.exe"
-          $sourcePath = Join-Path $sourceDir $sourceName
-          $destinationPath = Join-Path $sourceDir $newFileName
+          $sourcePath = Join-Path -Path $sourceDir -ChildPath $sourceName
+          $destinationPath = Join-Path -Path $sourceDir -ChildPath $newFileName
                       
           # Diagnostic information display
           Write-Host "Current directory: $(Get-Location)"
-          Write-Host "Source directory exists: $(Test-Path $sourceDir)"
+          Write-Host "Source directory exists: $(Test-Path -Path $sourceDir)"
           Write-Host "Source path: $sourcePath"
-          Write-Host "Source file exists: $(Test-Path $sourcePath)"
+          Write-Host "Source file exists: $(Test-Path -Path $sourcePath)"
           Write-Host "Destination path: $destinationPath"
                       
           # Listing of source directory contents
-          Write-Host "Contents of $sourceDir:"
-          Get-ChildItem $sourceDir | ForEach-Object { Write-Host $_.Name }
+          Write-Host "Contents of ${sourceDir}:"
+          if (Test-Path -Path $sourceDir) {
+              Get-ChildItem -Path $sourceDir | ForEach-Object { Write-Host $_.Name }
+          } else {
+              Write-Host "Source directory does not exist."
+          }
                       
           # Attempt to rename
-          if (Test-Path $sourcePath) {
+          if (Test-Path -Path $sourcePath) {
               try {
                   Rename-Item -Path $sourcePath -NewName $newFileName -Force -ErrorAction Stop
                   Write-Host "File renamed successfully to $newFileName"
-                  echo "NEXT_VER_CODE=$latestTag" | Out-File -FilePath $env:GITHUB_ENV -Append
+                  "NEXT_VER_CODE=$latestTag" | Out-File -FilePath $env:GITHUB_ENV -Append
               } catch {
                   Write-Host "Error renaming file: $_"
                   exit 1
