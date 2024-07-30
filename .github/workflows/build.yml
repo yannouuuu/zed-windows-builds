@@ -45,11 +45,12 @@ jobs:
       - name: Set version tag
         id: set_version
         run: |
-          $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases).tag_name
+          $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases | Select-Object -First 1).tag_name
           Write-Output "NEXT_VER_CODE=$latestTag" | Out-File -FilePath $env:GITHUB_ENV -Append
         shell: pwsh
-      - run: Rename-Item -Path target/release/Zed-windows-amd64.exe -NewName Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
-        shell: pwsh      
+      - name: Rename build output
+        run: Rename-Item -Path target/release/Zed-windows-amd64.exe -NewName Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
+        shell: pwsh  
       - uses: actions/upload-artifact@v4
         with:
           name: Zed-windows-amd64-${{ env.NEXT_VER_CODE }}
