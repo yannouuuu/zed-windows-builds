@@ -59,11 +59,6 @@ jobs:
           $sourcePath = Join-Path -Path $sourceDir -ChildPath $sourceName
           $destinationPath = Join-Path -Path $sourceDir -ChildPath $newFileName
 
-          if (Test-Path -Path $destinationPath) {
-            Write-Host "File $destinationPath already exists. Deleting the old file."
-            Remove-Item -Path $destinationPath
-          }
-
           Write-Host "Current directory: $(Get-Location)"
           Write-Host "Source directory exists: $(Test-Path -Path $sourceDir)"
           Write-Host "Source path: $sourcePath"
