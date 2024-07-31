@@ -62,12 +62,16 @@ jobs:
       - name: Get latest release tag from GitHub API
         id: get_latest_tag
         run: |
-          $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases | ForEach-Object { $_.tag_name } | Select-Object -First 1)
+          $latestRelease = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases/latest)
+          $latestTag = $latestRelease.tag_name
+          $isPrerelease = $latestRelease.prerelease.ToString().ToLower()
           if (-not $latestTag) {
             $latestTag = "v0.0.0"
+            $isPrerelease = "false"
           }
           echo "LATEST_TAG=$latestTag" >> $env:GITHUB_ENV
-          echo "Latest tag: $latestTag"
+          echo "IS_PRERELEASE=$isPrerelease" >> $env:GITHUB_ENV
+          echo "Latest tag: $latestTag, Is Pre-release: $isPrerelease"
 
       - name: Rename build output
         run: |
@@ -127,12 +131,16 @@ jobs:
       - name: Get latest release tag
         id: get_latest_tag
         run: |
-          LATEST_TAG=$(curl -s https://api.github.com/repos/zed-industries/zed/releases | jq -r '.[0].tag_name')
+          LATEST_RELEASE=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/latest)
+          LATEST_TAG=$(echo $LATEST_RELEASE | jq -r '.tag_name')
+          IS_PRERELEASE=$(echo $LATEST_RELEASE | jq -r '.prerelease')
           if [ -z "$LATEST_TAG" ]; then
-            LATEST_TAG="v0.0.0"  # Fallback version si aucun tag n'est trouvé
+            LATEST_TAG="v0.0.0"
+            IS_PRERELEASE=false
           fi
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
-          echo "Latest tag: $LATEST_TAG"
+          echo "IS_PRERELEASE=$IS_PRERELEASE" >> $GITHUB_ENV
+          echo "Latest tag: $LATEST_TAG, Is Pre-release: $IS_PRERELEASE"
 
       - name: Fetch release body from GitHub API
         id: fetch_body
@@ -147,16 +155,28 @@ jobs:
           echo "$BODY" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-      - name: Upload to release
-        uses: svenstaro/upload-release-action@v2
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          tag_name: ${{ env.LATEST_TAG }}
           release_name: ${{ env.LATEST_TAG }}
-          tag: ${{ env.LATEST_TAG }}
           body: ${{ env.RELEASE_BODY }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/release/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+          draft: false
+          prerelease: ${{ env.IS_PRERELEASE }}
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./target/release/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
           asset_name: Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
-          overwrite: true
+          asset_content_type: application/octet-stream
+
 
       - uses: actions/checkout@v4
         with:
