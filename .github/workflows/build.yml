@@ -40,16 +40,25 @@ jobs:
       - name: Clean up old build artifacts
         run: |
           $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases | ForEach-Object { $_.tag_name } | Select-Object -First 1)
-          $oldArtifacts = Get-ChildItem -Path "target/release" -Filter "Zed-windows-amd64-*.exe"
-          foreach ($artifact in $oldArtifacts) {
+          $oldArtifactsAmd = Get-ChildItem -Path "target/release" -Filter "Zed-windows-amd64-*.exe"
+          $oldArtifacts = Get-ChildItem -Path "target/release" -Filter "Zed.exe"
+          foreach ($artifact in $oldArtifactsAmd) {
             if ($artifact.Name -ne "Zed-windows-amd64-$latestTag.exe") {
               Remove-Item $artifact.FullName -Force
               Write-Host "Removed old artifact: $($artifact.Name)"
             }
           }
-      # Build Zed
+          foreach ($artifact in $oldArtifacts) {
+            if ($artifact.Name -ne "Zed.exe") {
+              Remove-Item $artifact.FullName -Force
+              Write-Host "Removed old artifact: $($artifact.Name)"
+            }
+          }
+      ################################################ Build Zed ################################################
       - run: cargo build --release -j 4
+      ###########################################################################################################
       - run: copy target/release/Zed.exe target/release/Zed-windows-amd64.exe
+      # Check if the file exists
       - run: |
           if (Test-Path -Path 'target/release/Zed-windows-amd64.exe') {
             echo "Build successful, file exists."
@@ -73,6 +82,7 @@ jobs:
           echo "IS_PRERELEASE=$isPrerelease" >> $env:GITHUB_ENV
           echo "Latest tag: $latestTag, Is Pre-release: $isPrerelease"
 
+      # Rename build output to include the latest tag
       - name: Rename build output
         run: |
           $sourceDir = "target\release"
@@ -93,6 +103,79 @@ jobs:
         with:
           name: Zed-windows-amd64-${{ env.LATEST_TAG }}
           path: target/release/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+
+      ################################################### MSIX PART ##################################################    
+      - name: Install Windows SDK
+        uses: microsoft/setup-msbuild@v1.3.1
+
+      - name: Install icon extractor and converter
+        run: |
+          choco install imagemagick -y
+          Invoke-WebRequest -Uri "https://github.com/mattkang/IconExtractor/releases/download/v1.0.0/IconExtractor.exe" -OutFile "IconExtractor.exe"
+
+      - name: Extract and convert icon
+        run: |
+          .\IconExtractor.exe "target\release\Zed.exe" "zed_icon.ico"
+          magick convert zed_icon.ico -resize 44x44 assets\Square44x44Logo.png
+          magick convert zed_icon.ico -resize 150x150 assets\Square150x150Logo.png
+          magick convert zed_icon.ico -resize 310x310 assets\LargeTile.png
+          magick convert zed_icon.ico -resize 71x71 assets\SmallTile.png
+          magick convert zed_icon.ico -resize 50x50 assets\StoreLogo.png
+
+      - name: Create MSIX manifest
+        run: |
+          $manifestContent = @'
+          <?xml version="1.0" encoding="utf-8"?>
+          <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+                   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+                   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
+            <Identity Name="Zed" Version="${{ env.LATEST_TAG }}" Publisher="CN=ZedIndustries" />
+            <Properties>
+              <DisplayName>Zed</DisplayName>
+              <PublisherDisplayName>Zed Industries</PublisherDisplayName>
+              <Logo>assets\StoreLogo.png</Logo>
+            </Properties>
+            <Dependencies>
+              <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.14393.0" MaxVersionTested="10.0.19041.0" />
+            </Dependencies>
+            <Capabilities>
+              <rescap:Capability Name="runFullTrust" />
+            </Capabilities>
+            <Applications>
+              <Application Id="Zed" Executable="Zed.exe" EntryPoint="Windows.FullTrustApplication">
+                <uap:VisualElements
+                  DisplayName="Zed"
+                  Description="Zed Editor"
+                  BackgroundColor="transparent"
+                  Square150x150Logo="assets\Square150x150Logo.png"
+                  Square44x44Logo="assets\Square44x44Logo.png">
+                  <uap:DefaultTile Wide310x150Logo="assets\LargeTile.png" Square71x71Logo="assets\SmallTile.png" Square310x310Logo="assets\LargeTile.png" />
+                </uap:VisualElements>
+              </Application>
+            </Applications>
+          </Package>
+          '@
+          $manifestContent | Out-File -FilePath "AppxManifest.xml" -Encoding utf8
+          
+        # Create MSIX package
+        - name: Create MSIX package
+          run: |
+            & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" pack /d . /p Zed-windows-amd64-${{ env.LATEST_TAG }}.msix /f AppxManifest.xml
+          
+        
+            ################################################################################################################ 
+
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Zed-windows-amd64-${{ env.LATEST_TAG }}
+          path: |
+            target/release/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.msix
+
+
+
+
 
   upload-to-release:
     runs-on: ubuntu-latest
