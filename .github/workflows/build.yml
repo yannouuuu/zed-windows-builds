@@ -35,6 +35,19 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
+
+      # Clean up old build artifacts
+      - name: Clean up old build artifacts
+        run: |
+          $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases | ForEach-Object { $_.tag_name } | Select-Object -First 1)
+          $oldArtifacts = Get-ChildItem -Path "target/release" -Filter "Zed-windows-amd64-*.exe"
+          foreach ($artifact in $oldArtifacts) {
+            if ($artifact.Name -ne "Zed-windows-amd64-$latestTag.exe") {
+              Remove-Item $artifact.FullName -Force
+              Write-Host "Removed old artifact: $($artifact.Name)"
+            }
+          }
+
       - run: cargo build --release -j 4
       - run: copy target/release/Zed.exe target/release/Zed-windows-amd64.exe
       - run: |
@@ -45,45 +58,23 @@ jobs:
             echo "Build failed, file does not exist."
             exit 1
           }
-      - name: Diagnostic and rename build output
+            
+      - name: Rename build output
         run: |
-          # Retrieving the last tag
-          $allTags = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases | ForEach-Object { $_.tag_name })
-          $latestTag = $allTags | Select-Object -First 1
-          Write-Host "Latest tag: $latestTag"
-
-          # Path definition
+          $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases | ForEach-Object { $_.tag_name } | Select-Object -First 1)
           $sourceDir = "target\release"
-          $sourceName = "Zed.exe"
+          $sourceName = "Zed-windows-amd64.exe"
           $newFileName = "Zed-windows-amd64-$latestTag.exe"
           $sourcePath = Join-Path -Path $sourceDir -ChildPath $sourceName
           $destinationPath = Join-Path -Path $sourceDir -ChildPath $newFileName
 
-          Write-Host "Current directory: $(Get-Location)"
-          Write-Host "Source directory exists: $(Test-Path -Path $sourceDir)"
-          Write-Host "Source path: $sourcePath"
-          Write-Host "Source file exists: $(Test-Path -Path $sourcePath)"
-          Write-Host "Destination path: $destinationPath"
-
-          Write-Host "Contents of ${sourceDir}:"
-          if (Test-Path -Path $sourceDir) {
-              Get-ChildItem -Path $sourceDir | ForEach-Object { Write-Host $_.Name }
-          } else {
-              Write-Host "Source directory does not exist."
-          }
-
           if (Test-Path -Path $sourcePath) {
-              try {
-                  Rename-Item -Path $sourcePath -NewName $newFileName -Force -ErrorAction Stop
-                  Write-Host "File renamed successfully to $newFileName"
-                  "NEXT_VER_CODE=$latestTag" | Out-File -FilePath $env:GITHUB_ENV -Append
-              } catch {
-                  Write-Host "Error renaming file: $_"
-                  exit 1
-              }
+            Rename-Item -Path $sourcePath -NewName $newFileName -Force
+            Write-Host "File renamed successfully to $newFileName"
+            "NEXT_VER_CODE=$latestTag" | Out-File -FilePath $env:GITHUB_ENV -Append
           } else {
-              Write-Host "Error: Source file $sourcePath not found"
-              exit 1
+            Write-Host "Error: Source file $sourcePath not found"
+            exit 1
           }
 
       - uses: actions/upload-artifact@v4
