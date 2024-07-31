@@ -47,6 +47,7 @@ jobs:
               Write-Host "Removed old artifact: $($artifact.Name)"
             }
           }
+
       # Build Zed
       - run: cargo build --release -j 4
       - run: copy target/release/Zed.exe target/release/Zed-windows-amd64.exe
@@ -58,17 +59,36 @@ jobs:
             echo "Build failed, file does not exist."
             exit 1
           }
+
       # Get latest release tag from GitHub API + fallback to v0.0.0 if no tag is found
       - name: Get latest release tag from GitHub API
         id: get_latest_tag
         run: |
-          $latestRelease = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases/)
-          $latestTag = $latestRelease.tag_name
-          $isPrerelease = $latestRelease.prerelease.ToString().ToLower()
+          try {
+            $headers = @{
+              "Accept" = "application/vnd.github.v3+json"
+            }
+            $response = Invoke-WebRequest -Uri "https://api.github.com/repos/zed-industries/zed/releases" -Headers $headers -UseBasicParsing -ErrorAction Stop
+            $releases = $response.Content | ConvertFrom-Json
+                  
+            if ($releases.Count -gt 0) {
+              $latestRelease = $releases | Where-Object { -not $_.prerelease } | Select-Object -First 1
+              $latestTag = $latestRelease.tag_name
+              $isPrerelease = $latestRelease.prerelease.ToString().ToLower()
+            } else {
+              throw "No releases found"
+            }
+          } catch {
+            Write-Host "Failed to fetch releases: $_"
+            $latestTag = "v0.0.0"
+            $isPrerelease = "false"
+          }
+                  
           if (-not $latestTag) {
             $latestTag = "v0.0.0"
             $isPrerelease = "false"
           }
+                  
           echo "LATEST_TAG=$latestTag" >> $env:GITHUB_ENV
           echo "IS_PRERELEASE=$isPrerelease" >> $env:GITHUB_ENV
           echo "Latest tag: $latestTag, Is Pre-release: $isPrerelease"
