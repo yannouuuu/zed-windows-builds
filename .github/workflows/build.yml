@@ -104,6 +104,25 @@ jobs:
         with:
           pattern: Zed-*
           merge-multiple: true
+          path: target/release
+          
+      - name: Verify downloaded artifacts
+        run: |
+          echo "Contents of current directory:"
+          ls -R
+          echo "Contents of target/release directory:"
+          ls -l target/release || echo "target/release directory does not exist"
+      - name: Verify environment variables and files
+        run: |
+          echo "NEXT_VER_CODE: ${{ env.NEXT_VER_CODE }}"
+          echo "Current directory:"
+          pwd
+          echo "Contents of current directory:"
+          ls -R
+          echo "Contents of target/release directory:"
+          ls -l target/release || echo "target/release directory does not exist"
+          echo "Searching for Zed-windows-amd64 files:"
+          find . -name "Zed-windows-amd64*"
 
       - name: Get current date
         id: get_date
@@ -148,7 +167,7 @@ jobs:
           tag: ${{ env.NEXT_VER_CODE }}
           body: ${{ env.RELEASE_BODY }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/release/Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
+          file: ${{ github.workspace }}/target/release/Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
           overwrite: true
 
       - uses: actions/checkout@v4
