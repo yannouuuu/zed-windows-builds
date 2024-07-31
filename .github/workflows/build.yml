@@ -47,7 +47,7 @@ jobs:
               Write-Host "Removed old artifact: $($artifact.Name)"
             }
           }
-
+      # Build Zed
       - run: cargo build --release -j 4
       - run: copy target/release/Zed.exe target/release/Zed-windows-amd64.exe
       - run: |
@@ -58,20 +58,28 @@ jobs:
             echo "Build failed, file does not exist."
             exit 1
           }
-            
-      - name: Rename build output
+      # Get latest release tag from GitHub API + fallback to v0.0.0 if no tag is found
+      - name: Get latest release tag from GitHub API
+        id: get_latest_tag
         run: |
           $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases | ForEach-Object { $_.tag_name } | Select-Object -First 1)
+          if (-not $latestTag) {
+            $latestTag = "v0.0.0"
+          }
+          echo "LATEST_TAG=$latestTag" >> $env:GITHUB_ENV
+          echo "Latest tag: $latestTag"
+
+      - name: Rename build output
+        run: |
           $sourceDir = "target\release"
           $sourceName = "Zed-windows-amd64.exe"
-          $newFileName = "Zed-windows-amd64-$latestTag.exe"
+          $newFileName = "Zed-windows-amd64-$env:LATEST_TAG.exe"
           $sourcePath = Join-Path -Path $sourceDir -ChildPath $sourceName
           $destinationPath = Join-Path -Path $sourceDir -ChildPath $newFileName
 
           if (Test-Path -Path $sourcePath) {
             Rename-Item -Path $sourcePath -NewName $newFileName -Force
             Write-Host "File renamed successfully to $newFileName"
-            "NEXT_VER_CODE=$latestTag" | Out-File -FilePath $env:GITHUB_ENV -Append
           } else {
             Write-Host "Error: Source file $sourcePath not found"
             exit 1
@@ -79,8 +87,8 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Zed-windows-amd64-${{ env.NEXT_VER_CODE }}
-          path: target/release/Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
+          name: Zed-windows-amd64-${{ env.LATEST_TAG }}
+          path: target/release/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
 
   upload-to-release:
     runs-on: ubuntu-latest
@@ -98,9 +106,10 @@ jobs:
           ls -R
           echo "Contents of target/release directory:"
           ls -l target/release || echo "target/release directory does not exist"
+
       - name: Verify environment variables and files
         run: |
-          echo "NEXT_VER_CODE: ${{ env.NEXT_VER_CODE }}"
+          echo "LATEST_TAG=$LATEST_TAG"
           echo "Current directory:"
           pwd
           echo "Contents of current directory:"
@@ -115,45 +124,38 @@ jobs:
         run: |
           echo "DATE=$(date +'%m-%d-%Y')" >> $GITHUB_ENV
 
-      - name: Set version tag
-        id: set_version
+      - name: Get latest release tag
+        id: get_latest_tag
         run: |
-          latestTag=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/ | jq -r .tag_name)
-          if [ -z "$latestTag" ]; then
-            echo "Error: Unable to retrieve the latest tag"
-            exit 1
+          LATEST_TAG=$(curl -s https://api.github.com/repos/zed-industries/zed/releases | jq -r '.[0].tag_name')
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v0.0.0"  # Fallback version si aucun tag n'est trouvé
           fi
-          echo "NEXT_VER_CODE=${latestTag}" >> $GITHUB_ENV
-          echo "Latest tag: $latestTag"
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+          echo "Latest tag: $LATEST_TAG"
 
-      - name: Fetch release body from Zed
+      - name: Fetch release body from GitHub API
         id: fetch_body
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           RELEASE_DATA=$(curl -s \
             -H "Authorization: token $GITHUB_TOKEN" \
-            https://api.github.com/repos/zed-industries/zed/releases)
-
-          BODY=$(echo "$RELEASE_DATA" | jq -r '.[0].body')
+            https://api.github.com/repos/zed-industries/zed/releases/latest)
+          BODY=$(echo "$RELEASE_DATA" | jq -r '.body')
           echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
           echo "$BODY" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-      - name: Verify environment variables
-        run: |
-          echo "NEXT_VER_CODE: ${{ env.NEXT_VER_CODE }}"
-          ls -l target/release/
-
-      - name: Upload modules to release
+      - name: Upload to release
         uses: svenstaro/upload-release-action@v2
-        if: env.NEXT_VER_CODE != ''
         with:
-          release_name: ${{ env.NEXT_VER_CODE }}
-          tag: ${{ env.NEXT_VER_CODE }}
+          release_name: ${{ env.LATEST_TAG }}
+          tag: ${{ env.LATEST_TAG }}
           body: ${{ env.RELEASE_BODY }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ github.workspace }}/target/release/Zed-windows-amd64-${{ env.NEXT_VER_CODE }}.exe
+          file: target/release/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+          asset_name: Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
           overwrite: true
 
       - uses: actions/checkout@v4
