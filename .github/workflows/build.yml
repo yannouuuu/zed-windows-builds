@@ -62,7 +62,7 @@ jobs:
       - name: Get latest release tag from GitHub API
         id: get_latest_tag
         run: |
-          $latestRelease = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases/latest)
+          $latestRelease = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases/)
           $latestTag = $latestRelease.tag_name
           $isPrerelease = $latestRelease.prerelease.ToString().ToLower()
           if (-not $latestTag) {
