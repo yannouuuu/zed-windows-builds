@@ -55,7 +55,7 @@ jobs:
           $newFileName = "Zed-windows-amd64-$latestTag.exe"
           $sourcePath = Join-Path -Path $sourceDir -ChildPath $sourceName
           $destinationPath = Join-Path -Path $sourceDir -ChildPath $newFileName
-          
+
           if (Test-Path -Path $destinationPath) {
             Write-Host "File $destinationPath already exists. Deleting the old file."
             Remove-Item -Path $destinationPath
@@ -111,8 +111,13 @@ jobs:
       - name: Set version tag
         id: set_version
         run: |
-          latestTag=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/ | jq -r .tag_name)
+          latestTag=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/latest | jq -r .tag_name)
+          if [ -z "$latestTag" ]; then
+            echo "Error: Unable to retrieve the latest tag"
+            exit 1
+          fi
           echo "NEXT_VER_CODE=${latestTag}" >> $GITHUB_ENV
+          echo "Latest tag: $latestTag"
 
       - name: Fetch release body from Zed
         id: fetch_body
@@ -128,8 +133,14 @@ jobs:
           echo "$BODY" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
+      - name: Verify environment variables
+        run: |
+          echo "NEXT_VER_CODE: ${{ env.NEXT_VER_CODE }}"
+          ls -l target/release/
+
       - name: Upload modules to release
         uses: svenstaro/upload-release-action@v2
+        if: env.NEXT_VER_CODE != ''
         with:
           release_name: ${{ env.NEXT_VER_CODE }}
           tag: ${{ env.NEXT_VER_CODE }}
