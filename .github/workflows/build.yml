@@ -67,7 +67,6 @@ jobs:
           Write-Host "Source file exists: $(Test-Path -Path $sourcePath)"
           Write-Host "Destination path: $destinationPath"
 
-
           Write-Host "Contents of ${sourceDir}:"
           if (Test-Path -Path $sourceDir) {
               Get-ChildItem -Path $sourceDir | ForEach-Object { Write-Host $_.Name }
