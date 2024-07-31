@@ -55,12 +55,18 @@ jobs:
           $newFileName = "Zed-windows-amd64-$latestTag.exe"
           $sourcePath = Join-Path -Path $sourceDir -ChildPath $sourceName
           $destinationPath = Join-Path -Path $sourceDir -ChildPath $newFileName
+          
+          if (Test-Path -Path $destinationPath) {
+            Write-Host "File $destinationPath already exists. Deleting the old file."
+            Remove-Item -Path $destinationPath
+          }
 
           Write-Host "Current directory: $(Get-Location)"
           Write-Host "Source directory exists: $(Test-Path -Path $sourceDir)"
           Write-Host "Source path: $sourcePath"
           Write-Host "Source file exists: $(Test-Path -Path $sourcePath)"
           Write-Host "Destination path: $destinationPath"
+
 
           Write-Host "Contents of ${sourceDir}:"
           if (Test-Path -Path $sourceDir) {
