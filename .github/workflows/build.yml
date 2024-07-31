@@ -150,7 +150,7 @@ jobs:
       - name: Get latest release tag
         id: get_latest_tag
         run: |
-          LATEST_RELEASE=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/latest)
+          LATEST_RELEASE=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/)
           LATEST_TAG=$(echo $LATEST_RELEASE | jq -r '.tag_name')
           IS_PRERELEASE=$(echo $LATEST_RELEASE | jq -r '.prerelease')
           if [ -z "$LATEST_TAG" ]; then
