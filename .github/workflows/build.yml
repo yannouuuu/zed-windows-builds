@@ -132,7 +132,7 @@ jobs:
       - name: Set version tag
         id: set_version
         run: |
-          latestTag=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/latest | jq -r .tag_name)
+          latestTag=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/ | jq -r .tag_name)
           if [ -z "$latestTag" ]; then
             echo "Error: Unable to retrieve the latest tag"
             exit 1
