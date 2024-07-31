@@ -168,7 +168,7 @@ jobs:
         run: |
           RELEASE_DATA=$(curl -s \
             -H "Authorization: token $GITHUB_TOKEN" \
-            https://api.github.com/repos/zed-industries/zed/releases/latest)
+            https://api.github.com/repos/zed-industries/zed/releases/)
           BODY=$(echo "$RELEASE_DATA" | jq -r '.body')
           echo "RELEASE_BODY<<EOF" >> $GITHUB_OUTPUT
           echo "$BODY" >> $GITHUB_OUTPUT
