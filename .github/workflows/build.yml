@@ -61,11 +61,20 @@ jobs:
 
       - name: Clean up old build artifacts
         run: |
-          Get-ChildItem -Path "zed/target/release" -Filter "Zed-windows-amd64-*.exe" | 
-          Where-Object { $_.Name -ne "Zed-windows-amd64-$env:LATEST_TAG.exe" } | 
-          ForEach-Object { 
-            Remove-Item $_.FullName -Force
-            Write-Host "Removed old artifact: $($_.Name)"
+          $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases | ForEach-Object { $_.tag_name } | Select-Object -First 1)
+          $oldArtifactsAmd = Get-ChildItem -Path "target/release" -Filter "Zed-windows-amd64-*.exe"
+          $oldArtifacts = Get-ChildItem -Path "target/release" -Filter "Zed.exe"
+          foreach ($artifact in $oldArtifactsAmd) {
+            if ($artifact.Name -ne "Zed-windows-amd64-$latestTag.exe") {
+                Remove-Item $artifact.FullName -Force
+                Write-Host "Removed old artifact: $($artifact.Name)"
+              }
+            }
+          foreach ($artifact in $oldArtifacts) {
+            if ($artifact.Name -ne "Zed.exe") {
+              Remove-Item $artifact.FullName -Force
+              Write-Host "Removed old artifact: $($artifact.Name)"
+            }
           }
 
       - name: Build Zed
