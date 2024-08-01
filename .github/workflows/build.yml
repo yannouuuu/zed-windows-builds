@@ -97,14 +97,12 @@ jobs:
           cd zed
           cargo build --release -j 4
 
-      - name: Prepare build output
+      - name: Verify Zed build
         run: |
-          cd zed
-          Copy-Item target/release/Zed.exe target/release/Zed-windows-amd64-$env:LATEST_TAG.exe
-          if (Test-Path target/release/Zed-windows-amd64-$env:LATEST_TAG.exe) {
-            echo "Build successful, file exists."
+          if (Test-Path "zed/target/release/Zed.exe") {
+            Write-Host "Zed.exe built successfully"
           } else {
-            echo "Build failed, file does not exist."
+            Write-Host "Zed.exe not found after build"
             exit 1
           }
 
@@ -126,17 +124,24 @@ jobs:
             Write-Host "Assets directory already exists"
           }
 
-          # Extract and convert icon
-          $iconPath = "zed_icon.ico"
-          Add-Type -AssemblyName System.Drawing
-          $icon = [System.Drawing.Icon]::ExtractAssociatedIcon("target/release/Zed.exe")
-          $icon.ToBitmap().Save($iconPath, [System.Drawing.Imaging.ImageFormat]::Png)
+          # Check if Zed.exe exists
+          $zedExePath = "target/release/Zed.exe"
+          if (Test-Path $zedExePath) {
+            # Extract and convert icon
+            $iconPath = "zed_icon.ico"
+            Add-Type -AssemblyName System.Drawing
+            $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($zedExePath)
+            $icon.ToBitmap().Save($iconPath, [System.Drawing.Imaging.ImageFormat]::Png)
 
-          magick convert zed_icon.ico -resize 44x44 assets/Square44x44Logo.png
-          magick convert zed_icon.ico -resize 150x150 assets/Square150x150Logo.png
-          magick convert zed_icon.ico -resize 310x310 assets/LargeTile.png
-          magick convert zed_icon.ico -resize 71x71 assets/SmallTile.png
-          magick convert zed_icon.ico -resize 50x50 assets/StoreLogo.png
+            magick convert $iconPath -resize 44x44 assets/Square44x44Logo.png
+            magick convert $iconPath -resize 150x150 assets/Square150x150Logo.png
+            magick convert $iconPath -resize 310x310 assets/LargeTile.png
+            magick convert $iconPath -resize 71x71 assets/SmallTile.png
+            magick convert $iconPath -resize 50x50 assets/StoreLogo.png
+          } else {
+            Write-Host "Zed.exe not found. Skipping icon extraction and conversion."
+            # You might want to use placeholder images here if needed
+          }
 
       - name: Create MSIX manifest
         run: |
