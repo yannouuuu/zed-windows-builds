@@ -128,12 +128,13 @@ jobs:
       - name: Get latest release tag from GitHub API
         id: get_latest_tag
         run: |
-          $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases | ForEach-Object { $_.tag_name } | Select-Object -First 1)
-          if (-not $latestTag) {
-            $latestTag = "v0.0.0"
-          }
-          echo "LATEST_TAG=$latestTag" >> $env:GITHUB_ENV
-          echo "Latest tag: $latestTag"
+          LATEST_TAG=$(curl -s https://api.github.com/repos/zed-industries/zed/releases | jq -r '.[0].tag_name // empty')
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v0.0.0"
+          fi
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+          echo "Latest tag: $LATEST_TAG"
+        shell: bash
 
       - name: Fetch release body from GitHub API
         id: fetch_body
