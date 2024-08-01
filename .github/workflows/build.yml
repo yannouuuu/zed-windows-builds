@@ -59,22 +59,33 @@ jobs:
           echo "LATEST_TAG=$latestTag" >> $env:GITHUB_ENV
           echo "Latest tag: $latestTag"
 
+      - name: Debug - List directory structure
+        run: |
+          Write-Host "Current directory:"
+          Get-Location
+          Write-Host "Directory structure:"
+          Get-ChildItem -Recurse -Depth 3 | Select-Object FullName
+
       - name: Clean up old build artifacts
         run: |
-          $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases | ForEach-Object { $_.tag_name } | Select-Object -First 1)
-          $oldArtifactsAmd = Get-ChildItem -Path "target/release" -Filter "Zed-windows-amd64-*.exe"
-          $oldArtifacts = Get-ChildItem -Path "target/release" -Filter "Zed.exe"
-          foreach ($artifact in $oldArtifactsAmd) {
-            if ($artifact.Name -ne "Zed-windows-amd64-$latestTag.exe") {
-                Remove-Item $artifact.FullName -Force
-                Write-Host "Removed old artifact: $($artifact.Name)"
-              }
+          $releasePath = "zed/target/release"
+          if (Test-Path $releasePath) {
+            Get-ChildItem -Path $releasePath -Filter "Zed*.exe" | 
+            Where-Object { $_.Name -ne "Zed-windows-amd64-$env:LATEST_TAG.exe" -and $_.Name -ne "Zed.exe" } | 
+            ForEach-Object { 
+              Remove-Item $_.FullName -Force
+              Write-Host "Removed old artifact: $($_.Name)"
             }
-          foreach ($artifact in $oldArtifacts) {
-            if ($artifact.Name -ne "Zed.exe") {
-              Remove-Item $artifact.FullName -Force
-              Write-Host "Removed old artifact: $($artifact.Name)"
+            if (Test-Path "$releasePath/Zed.exe") {
+              Remove-Item "$releasePath/Zed.exe" -Force
+              Write-Host "Removed Zed.exe"
             }
+            if (Test-Path "$releasePath/Zed-windows-amd64-$env:LATEST_TAG.exe") {
+              Remove-Item "$releasePath/Zed-windows-amd64-$env:LATEST_TAG.exe" -Force
+              Write-Host "Removed Zed-windows-amd64-$env:LATEST_TAG.exe"
+            }
+          } else {
+            Write-Host "Release directory does not exist yet: $releasePath"
           }
 
       - name: Build Zed
