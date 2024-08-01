@@ -45,6 +45,9 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             zed/target/
+            C:/Users/runneradmin/.cargo/registry/
+            C:/Users/runneradmin/.cargo/git/
+            C:/Users/runneradmin/.rustup/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
