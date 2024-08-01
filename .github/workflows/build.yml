@@ -119,11 +119,25 @@ jobs:
           magick convert zed_icon.ico -resize 71x71 assets\SmallTile.png
           magick convert zed_icon.ico -resize 50x50 assets\StoreLogo.png
 
+      - name: Verify file locations
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Contents of current directory:"
+          Get-ChildItem -Recurse -Depth 2
+          echo "Checking for AppxManifest.zed.xml:"
+          if (Test-Path "${{ github.workspace }}/AppxManifest.zed.xml") {
+            echo "AppxManifest.zed.xml found at root"
+          } else {
+            echo "AppxManifest.zed.xml not found at root"
+            exit 1
+          }
+
       - name: Create MSIX manifest
         run: |
-          $manifestContent = Get-Content -Path "AppxManifest.zed.xml" -Raw
+          $manifestContent = Get-Content -Path "${{ github.workspace }}/AppxManifest.zed.xml" -Raw
           $manifestContent = $manifestContent -replace "__VERSION__", "${{ env.LATEST_TAG }}"
-          $manifestContent | Out-File -FilePath "AppxManifest.xml" -Encoding utf8
+          $manifestContent | Out-File -FilePath "${{ github.workspace }}/AppxManifest.xml" -Encoding utf8
 
       - name: Create MSIX package
         run: |
