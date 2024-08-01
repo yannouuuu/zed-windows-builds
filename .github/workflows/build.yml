@@ -113,7 +113,6 @@ jobs:
           $icon = [System.Drawing.Icon]::ExtractAssociatedIcon("target\release\Zed.exe")
           $icon.ToBitmap().Save($iconPath, [System.Drawing.Imaging.ImageFormat]::Png)
 
-          .\IconExtractor.exe "target\release\Zed.exe" "zed_icon.ico"
           magick convert zed_icon.ico -resize 44x44 assets\Square44x44Logo.png
           magick convert zed_icon.ico -resize 150x150 assets\Square150x150Logo.png
           magick convert zed_icon.ico -resize 310x310 assets\LargeTile.png
