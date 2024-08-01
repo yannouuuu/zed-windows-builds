@@ -56,7 +56,7 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
-          path: |
+          cache-directories: |
             ~/.cargo/bin/
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
@@ -67,9 +67,6 @@ jobs:
             C:/Users/runneradmin/.cargo/git/  
             C:/Users/runneradmin/.rustup/
           key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-rust-
-
 
       - name: Get latest release tag
         id: get_latest_tag
