@@ -45,8 +45,8 @@ jobs:
           $oldArtifacts = Get-ChildItem -Path "target/release" -Filter "Zed.exe"
           foreach ($artifact in $oldArtifactsAmd) {
             if ($artifact.Name -ne "Zed-windows-amd64-$latestTag.exe") {
-              Remove-Item $artifact.FullName -Force
-              Write-Host "Removed old artifact: $($artifact.Name)"
+            Remove-Item $artifact.FullName -Force
+            Write-Host "Removed old artifact: $($artifact.Name)"
             }
           }
           foreach ($artifact in $oldArtifacts) {
@@ -88,6 +88,9 @@ jobs:
           $newFileName = "Zed-windows-amd64-$env:LATEST_TAG.exe"
           $sourcePath = Join-Path -Path $sourceDir -ChildPath $sourceName
           $destinationPath = Join-Path -Path $sourceDir -ChildPath $newFileName
+          if (Test-Path -Path $destinationPath) {
+            Remove-Item -Path $destinationPath -Force
+          }
           if (Test-Path -Path $sourcePath) {
             Rename-Item -Path $sourcePath -NewName $newFileName -Force
             Write-Host "File renamed successfully to $newFileName"
@@ -230,7 +233,7 @@ jobs:
           tag_name: ${{ steps.get_latest_tag.outputs.LATEST_TAG }}
           body: ${{ steps.fetch_body.outputs.RELEASE_BODY }}
           draft: false
-          prerelease: ${{ steps.get_latest_tag.outputs.IS_PRERELEASE }}
+          prerelease: false
 
       - name: Update existing release
         if: steps.check_release.outputs.RELEASE_EXISTS == 'true'
@@ -244,7 +247,7 @@ jobs:
               "name": "${{ env.LATEST_TAG }}",
               "body": ${{ toJson(steps.fetch_body.outputs.RELEASE_BODY) }},
               "draft": false,
-              "prerelease": ${{ env.IS_PRERELEASE }}
+              "prerelease": false
             }'
 
       - name: Get Release ID
