@@ -108,7 +108,12 @@ jobs:
         run: |
           cd zed
           Copy-Item ../build-repo/AppxManifest.zed.xml .
-          Copy-Item ../build-repo/assets ./ -Recurse
+          if (Test-Path "../build-repo/assets") {
+            Copy-Item ../build-repo/assets ./ -Recurse
+          } else {
+            Write-Host "Assets directory not found. Creating empty assets directory."
+            New-Item -Path "assets" -ItemType Directory
+          }
 
           # Extract and convert icon
           $iconPath = "zed_icon.ico"
