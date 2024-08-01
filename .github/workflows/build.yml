@@ -73,23 +73,23 @@ jobs:
       - name: Get latest release tag from GitHub API
         id: get_latest_tag
         run: |
+          # Get the latest tag
           $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases | ForEach-Object { $_.tag_name } | Select-Object -First 1)
           if (-not $latestTag) {
             $latestTag = "v0.0.0"
           }
-          echo "LATEST_TAG=$latestTag" >> $env:GITHUB_ENV
-          echo "Latest tag: $latestTag"
 
-      # Rename build output to include the latest tag
-      - name: Rename build output
-        run: |
           $sourceDir = "target\release"
           $sourceName = "Zed-windows-amd64.exe"
-          $newFileName = "Zed-windows-amd64-$env:LATEST_TAG.exe"
+          $newFileName = "Zed-windows-amd64-$latestTag.exe"
           $sourcePath = Join-Path -Path $sourceDir -ChildPath $sourceName
           $destinationPath = Join-Path -Path $sourceDir -ChildPath $newFileName
 
           if (Test-Path -Path $sourcePath) {
+            if (Test-Path -Path $destinationPath) {
+              Write-Host "Destination file already exists. Removing it."
+              Remove-Item -Path $destinationPath -Force
+            }
             Rename-Item -Path $sourcePath -NewName $newFileName -Force
             Write-Host "File renamed successfully to $newFileName"
           } else {
