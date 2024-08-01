@@ -36,21 +36,6 @@ While these measures ensure a high degree of safety, it's advisable to employ up
 
 Some segments of the build process involve intricate operations. Here's an in-depth look at key components:
 
-### Icon Extraction and Conversion
-
-```powershell
-.\IconExtractor.exe "target\release\Zed.exe" "zed_icon.ico"
-magick convert zed_icon.ico -resize 44x44 assets\Square44x44Logo.png
-magick convert zed_icon.ico -resize 150x150 assets\Square150x150Logo.png
-magick convert zed_icon.ico -resize 310x310 assets\LargeTile.png
-magick convert zed_icon.ico -resize 71x71 assets\SmallTile.png
-magick convert zed_icon.ico -resize 50x50 assets\StoreLogo.png
-```
-
-This script performs icon extraction and conversion:
-1. `IconExtractor.exe` is employed to extract the icon resource from the compiled Zed executable.
-2. ImageMagick (`magick`) is then utilized to convert and resize the extracted icon into various dimensions required for MSIX package assets.
-
 ### MSIX Package Creation
 
 ```powershell
