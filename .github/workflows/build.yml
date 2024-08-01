@@ -124,7 +124,7 @@ jobs:
             Write-Host "Assets directory already exists"
           }
 
-          # Check if Zed.exe exists
+          # Check if Zed.exe exists before trying to extract icon
           $zedExePath = "target/release/Zed.exe"
           if (Test-Path $zedExePath) {
             # Extract and convert icon
@@ -139,8 +139,7 @@ jobs:
             magick convert $iconPath -resize 71x71 assets/SmallTile.png
             magick convert $iconPath -resize 50x50 assets/StoreLogo.png
           } else {
-            Write-Host "Zed.exe not found. Skipping icon extraction and conversion."
-            # You might want to use placeholder images here if needed
+            Write-Host "Zed.exe not found at $zedExePath. Skipping icon extraction."  
           }
 
       - name: Create MSIX manifest
