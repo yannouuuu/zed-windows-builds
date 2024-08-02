@@ -8,6 +8,9 @@
     <PublisherDisplayName>Zed Industries</PublisherDisplayName>
     <Logo>assets\StoreLogo.png</Logo>
   </Properties>
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
   <Dependencies>
     <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.14393.0" MaxVersionTested="10.0.19041.0" />
   </Dependencies>
@@ -27,4 +30,3 @@
     </Application>
   </Applications>
 </Package>
-          

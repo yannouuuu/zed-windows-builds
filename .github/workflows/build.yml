@@ -194,6 +194,18 @@ jobs:
           $manifestContent | Out-File -FilePath "AppxManifest.xml" -Encoding utf8
           Write-Host "Updated version in AppxManifest.xml to: $version"
 
+          # Vérifier que l'élément Resources est présent
+          $xml = [xml](Get-Content "AppxManifest.xml")
+          if (-not $xml.Package.Resources) {
+            $resources = $xml.CreateElement("Resources", $xml.Package.NamespaceURI)
+            $resource = $xml.CreateElement("Resource", $xml.Package.NamespaceURI)
+            $resource.SetAttribute("Language", "en-us")
+            $resources.AppendChild($resource)
+            $xml.Package.AppendChild($resources)
+            $xml.Save("AppxManifest.xml")
+            Write-Host "Added Resources element to AppxManifest.xml"
+          }
+
       - name: Create MSIX package
         run: |
           cd zed
