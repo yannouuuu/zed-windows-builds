@@ -131,7 +131,7 @@ jobs:
           } else {
             Write-Host "Assets directory not found in build-repo."
           }
-
+        
           if (-not (Test-Path "assets")) {
             New-Item -Path "assets" -ItemType Directory
             Write-Host "Created new assets directory"
@@ -147,14 +147,15 @@ jobs:
             Add-Type -AssemblyName System.Drawing
             $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($zedExePath)
             $icon.ToBitmap().Save($iconPath, [System.Drawing.Imaging.ImageFormat]::Png)
-
+  
             magick convert $iconPath -resize 44x44 assets/Square44x44Logo.png
             magick convert $iconPath -resize 150x150 assets/Square150x150Logo.png
             magick convert $iconPath -resize 310x310 assets/LargeTile.png
             magick convert $iconPath -resize 71x71 assets/SmallTile.png
             magick convert $iconPath -resize 50x50 assets/StoreLogo.png
           } else {
-            Write-Host "Zed.exe not found at $zedExePath. Skipping icon extraction."  
+            Write-Host "Zed.exe not found. Skipping icon extraction and conversion."
+            # You might want to use placeholder images here if needed
           }
 
       - name: Create MSIX manifest
