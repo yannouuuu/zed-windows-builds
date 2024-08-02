@@ -214,23 +214,10 @@ jobs:
       - name: Sign MSIX package
         working-directory: ./zed
         run: |
-          Write-Host "Before signing:"
-          ls
-          ls ..
+          $pfxBytes = [System.Convert]::FromBase64String("${{ secrets.CERTIFICATE_BASE64 }}")
+          Set-Content -Path "zed_cert.pfx" -Value $pfxBytes -Encoding Byte
 
-          $certPath = "../zed_cert.pfx"  # Relative path from working directory (./zed)
-          Write-Host "Certificate path: $certPath"
-          if (Test-Path $certPath) {
-            Write-Host "Certificate file exists."
-          } else {
-            Write-Host "Certificate file does not exist."
-            exit 1
-          }
-          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe" sign /fd SHA256 /a /f "$certPath" /p "${{ secrets.CERTIFICATE_PASSWORD }}" "Zed-windows-amd64-$env:LATEST_TAG.msix"
-          
-          Write-Host "After signing:"
-          ls
-          ls ..
+          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe" sign /fd SHA256 /a /f "zed_cert.pfx" /p "${{ secrets.CERTIFICATE_PASSWORD }}" "Zed-windows-amd64-$env:LATEST_TAG.msix"
 
       - name: Create MSIX package
         run: |
