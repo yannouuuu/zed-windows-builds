@@ -216,6 +216,7 @@ jobs:
         run: |
           Write-Host "Before signing:"
           ls
+          ls ..
 
           $certPath = "../zed_cert.pfx"  # Relative path from working directory (./zed)
           Write-Host "Certificate path: $certPath"
@@ -229,6 +230,7 @@ jobs:
           
           Write-Host "After signing:"
           ls
+          ls ..
 
       - name: Create MSIX package
         run: |
