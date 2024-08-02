@@ -214,7 +214,7 @@ jobs:
       - name: Sign MSIX package
         run: |
           cd zed
-          $certPath = "D:\a\zed-windows-build\zed-windows-build\zed_cert.pfx"  # Absolute path
+          $certPath = "..\zed_cert.pfx"  # Absolute path
           Write-Host "Certificate path: $certPath"
           if (Test-Path $certPath) {
             Write-Host "Certificate file exists."
