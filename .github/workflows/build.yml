@@ -131,7 +131,7 @@ jobs:
           } else {
             Write-Host "Assets directory not found in build-repo."
           }
-        
+          
           if (-not (Test-Path "assets")) {
             New-Item -Path "assets" -ItemType Directory
             Write-Host "Created new assets directory"
@@ -145,17 +145,39 @@ jobs:
             # Extract and convert icon
             $iconPath = "zed_icon.ico"
             Add-Type -AssemblyName System.Drawing
-            $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($zedExePath)
-            $icon.ToBitmap().Save($iconPath, [System.Drawing.Imaging.ImageFormat]::Png)
-  
-            magick convert $iconPath -resize 44x44 assets/Square44x44Logo.png
-            magick convert $iconPath -resize 150x150 assets/Square150x150Logo.png
-            magick convert $iconPath -resize 310x310 assets/LargeTile.png
-            magick convert $iconPath -resize 71x71 assets/SmallTile.png
-            magick convert $iconPath -resize 50x50 assets/StoreLogo.png
+            try {
+              $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($zedExePath)
+              $icon.ToBitmap().Save($iconPath, [System.Drawing.Imaging.ImageFormat]::Png)
+          
+              magick convert $iconPath -resize 44x44 assets/Square44x44Logo.png
+              magick convert $iconPath -resize 150x150 assets/Square150x150Logo.png
+              magick convert $iconPath -resize 310x310 assets/LargeTile.png
+              magick convert $iconPath -resize 71x71 assets/SmallTile.png
+              magick convert $iconPath -resize 50x50 assets/StoreLogo.png
+            } catch {
+              Write-Host "Error extracting or converting icon: $_"
+              # Use placeholder images if icon extraction fails
+              Copy-Item ../build-repo/placeholder_*.png assets/
+            }
           } else {
-            Write-Host "Zed.exe not found. Skipping icon extraction and conversion."
-            # You might want to use placeholder images here if needed
+            Write-Host "Zed.exe not found at $zedExePath. Using placeholder images."
+            # Use placeholder images
+            Copy-Item ../build-repo/placeholder_*.png assets/
+          }
+
+          # Ensure all required assets exist
+          $requiredAssets = @(
+            "Square44x44Logo.png",
+            "Square150x150Logo.png",
+            "LargeTile.png",
+            "SmallTile.png",
+            "StoreLogo.png"
+          )
+          foreach ($asset in $requiredAssets) {
+            if (-not (Test-Path "assets/$asset")) {
+              Write-Host "Warning: $asset not found. Creating a blank image."
+              magick convert -size 44x44 xc:transparent "assets/$asset"
+            }
           }
 
       - name: Create MSIX manifest
