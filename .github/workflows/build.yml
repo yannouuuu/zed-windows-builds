@@ -190,7 +190,23 @@ jobs:
       - name: Create MSIX package
         run: |
           cd zed
-          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" pack /d . /p Zed-windows-amd64-$env:LATEST_TAG.msix /f AppxManifest.xml
+          $outputPackage = "Zed-windows-amd64-$env:LATEST_TAG.msix"
+          $mappingFile = "mapping.txt"
+
+          # Créer le fichier de mapping
+          @"
+          [Files]
+          "target\release\Zed.exe" "Zed.exe"
+          "AppxManifest.xml" "AppxManifest.xml"
+          "assets\Square44x44Logo.png" "assets\Square44x44Logo.png"
+          "assets\Square150x150Logo.png" "assets\Square150x150Logo.png"
+          "assets\LargeTile.png" "assets\LargeTile.png"
+          "assets\SmallTile.png" "assets\SmallTile.png"
+          "assets\StoreLogo.png" "assets\StoreLogo.png"
+          "@ | Out-File -Encoding utf8 $mappingFile
+
+          # Créer le package MSIX
+          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" pack /f $mappingFile /p $outputPackage
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
