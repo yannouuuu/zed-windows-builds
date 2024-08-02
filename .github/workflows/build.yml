@@ -206,10 +206,6 @@ jobs:
             Write-Host "Added Resources element to AppxManifest.xml"
           }
 
-      - name: Copy certificate
-        run: |
-          Copy-Item -Path "../build-repo/zed_cert.pfx" -Destination "zed/utils/zed_cert.pfx"
-
       - name: List directory contents
         run: |
           cd zed
@@ -218,7 +214,7 @@ jobs:
       - name: Sign MSIX package
         run: |
           cd zed
-          $certPath = Join-Path -Path $PWD -ChildPath "utils/zed_cert.pfx"
+          $certPath = Join-Path -Path $PWD -ChildPath "../zed_cert.pfx"  # Path to repository root
           Write-Host "Certificate path: $certPath"
           if (Test-Path $certPath) {
             Write-Host "Certificate file exists."
