@@ -214,10 +214,14 @@ jobs:
       - name: Sign MSIX package
         working-directory: ./zed
         run: |
-          $pfxBytes = [System.Convert]::FromBase64String("${{ secrets.CERTIFICATE_BASE64 }}")
-          Set-Content -Path "zed_cert.pfx" -Value $pfxBytes -Encoding Byte
-
-          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe" sign /fd SHA256 /a /f "zed_cert.pfx" /p "${{ secrets.CERTIFICATE_PASSWORD }}" "Zed-windows-amd64-$env:LATEST_TAG.msix"
+          $pfxBase64 = "${{ secrets.CERTIFICATE_BASE64 }}"
+          $pfxBytes = [System.Convert]::FromBase64String($pfxBase64)
+          
+          $keyStorageFlags = [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::MachineKeySet -bor [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::PersistKeySet
+          $certificate = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList @(,$pfxBytes, "${{ secrets.CERTIFICATE_PASSWORD }}", $keyStorageFlags)
+          
+          $signtool = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe"
+          & $signtool sign /fd SHA256 /a /f $certificate /p "${{ secrets.CERTIFICATE_PASSWORD }}" "Zed-windows-amd64-$env:LATEST_TAG.msix"
 
       - name: Create MSIX package
         run: |
@@ -225,7 +229,7 @@ jobs:
           $outputPackage = "Zed-windows-amd64-$env:LATEST_TAG.msix"
           $mappingFile = "mapping.txt"
 
-          # Créer le fichier de mapping
+          # Create mapping file
           @"
           [Files]
           "target\release\Zed.exe" "Zed.exe"
@@ -237,7 +241,7 @@ jobs:
           "assets\StoreLogo.png" "assets\StoreLogo.png"
           "@ | Out-File -Encoding utf8 $mappingFile
 
-          # Créer le package MSIX
+          # Create the MSIX package
           & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" pack /f $mappingFile /p $outputPackage
 
       - name: Upload artifacts
