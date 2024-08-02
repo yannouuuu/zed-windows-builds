@@ -213,7 +213,7 @@ jobs:
       - name: List directory contents
         run: |
           cd zed
-          Get-ChildItem -Path . -Recurse
+          Get-ChildItem -Path . -File
 
       - name: Sign MSIX package
         run: |
