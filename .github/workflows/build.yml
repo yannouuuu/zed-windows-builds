@@ -206,11 +206,26 @@ jobs:
             Write-Host "Added Resources element to AppxManifest.xml"
           }
 
-      - name: Sign MSIX package
+      - name: Copy certificate
+        run: |
+          Copy-Item -Path "../build-repo/zed_cert.pfx" -Destination "zed/utils/zed_cert.pfx"
+
+      - name: List directory contents
         run: |
           cd zed
           Get-ChildItem -Path . -Recurse
-          $certPath = Join-Path -Path $PWD -ChildPath "utils\zed_cert.pfx"
+
+      - name: Sign MSIX package
+        run: |
+          cd zed
+          $certPath = Join-Path -Path $PWD -ChildPath "utils/zed_cert.pfx"
+          Write-Host "Certificate path: $certPath"
+          if (Test-Path $certPath) {
+            Write-Host "Certificate file exists."
+          } else {
+            Write-Host "Certificate file does not exist."
+            exit 1
+          }
           & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe" sign /fd SHA256 /a /f "$certPath" /p "${{ secrets.CERTIFICATE_PASSWORD }}" "Zed-windows-amd64-$env:LATEST_TAG.msix"
 
       - name: Create MSIX package
