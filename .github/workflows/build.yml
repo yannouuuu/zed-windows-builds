@@ -183,13 +183,14 @@ jobs:
       - name: Prepare MSIX manifest
         run: |
           cd zed
-          $manifestContent = Get-Content -Path "AppxManifest.xml" -Raw
+          Copy-Item ../build-repo/AppxManifest.zed.xml .
+          $manifestContent = Get-Content -Path "AppxManifest.zed.xml" -Raw
           $version = $env:LATEST_TAG -replace '^v', '' -replace '-pre$', ''
-          $version = $version -replace '^(\d+\.\d+\.\d+).*$', '$1'  # Garde seulement X.Y.Z
+          $version = $version -replace '^(\d+\.\d+\.\d+).*$', '$1'  # Keep only X.Y.Z
           if ($version -notmatch '^\d+\.\d+\.\d+\.\d+$') {
-            $version = $version + '.0'  # Ajoute un quatrième nombre si nécessaire
+            $version = $version + '.0'  # Add a fourth number if necessary
           }
-          $manifestContent = $manifestContent -replace 'Version="[^"]*"', "Version=`"$version`""
+          $manifestContent = $manifestContent -replace '__VERSION__', $version
           $manifestContent | Out-File -FilePath "AppxManifest.xml" -Encoding utf8
           Write-Host "Updated version in AppxManifest.xml to: $version"
 
