@@ -209,7 +209,9 @@ jobs:
       - name: Sign MSIX package
         run: |
           cd zed
-          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe" sign /fd SHA256 /a /f "utils\zed_cert.pfx" /p "${{ secrets.CERTIFICATE_PASSWORD }}" "Zed-windows-amd64-$env:LATEST_TAG.msix"
+          Get-ChildItem -Path . -Recurse
+          $certPath = Join-Path -Path $PWD -ChildPath "utils\zed_cert.pfx"
+          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe" sign /fd SHA256 /a /f "$certPath" /p "${{ secrets.CERTIFICATE_PASSWORD }}" "Zed-windows-amd64-$env:LATEST_TAG.msix"
 
       - name: Create MSIX package
         run: |
