@@ -211,17 +211,19 @@ jobs:
           cd zed
           Get-ChildItem -Path . -File
 
-      - name: Sign MSIX package
-        working-directory: ./zed
+      - name: Decode the Pfx
         run: |
           $pfxBase64 = "${{ secrets.CERTIFICATE_BASE64 }}"
           $pfxBytes = [System.Convert]::FromBase64String($pfxBase64)
-          
-          $keyStorageFlags = [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::MachineKeySet -bor [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::PersistKeySet
-          $certificate = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList @(,$pfxBytes, "${{ secrets.CERTIFICATE_PASSWORD }}", $keyStorageFlags)
-          
+          $certificatePath = Join-Path -Path $env:GITHUB_WORKSPACE -ChildPath "zed_cert.pfx"
+          [IO.File]::WriteAllBytes($certificatePath, $pfxBytes)
+
+      - name: Sign MSIX package
+        working-directory: ./zed
+        run: |
+          $certificatePath = Join-Path -Path $env:GITHUB_WORKSPACE -ChildPath "zed_cert.pfx"
           $signtool = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe"
-          & $signtool sign /fd SHA256 /a /f $certificate /p "${{ secrets.CERTIFICATE_PASSWORD }}" "Zed-windows-amd64-$env:LATEST_TAG.msix"
+          & $signtool sign /fd SHA256 /a /f $certificatePath /p "${{ secrets.CERTIFICATE_PASSWORD }}" "Zed-windows-amd64-$env:LATEST_TAG.msix"
 
       - name: Create MSIX package
         run: |
