@@ -121,6 +121,21 @@ jobs:
             exit 1
           }
 
+      - name: Rename build output
+        run: |
+          $sourceDir = "target\release"
+          $sourceName = "Zed-windows-amd64.exe"
+          $newFileName = "Zed-windows-amd64-$env:LATEST_TAG.exe"
+          $sourcePath = Join-Path -Path $sourceDir -ChildPath $sourceName
+          $destinationPath = Join-Path -Path $sourceDir -ChildPath $newFileName
+          if (Test-Path -Path $sourcePath) {
+            Rename-Item -Path $sourcePath -NewName $newFileName -Force
+            Write-Host "File renamed successfully to $newFileName"
+          } else {
+            Write-Host "Error: Source file $sourcePath not found"
+            exit 1
+          }
+            
       - name: Prepare MSIX package
         run: |
           cd zed
