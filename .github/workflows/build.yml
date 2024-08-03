@@ -123,8 +123,8 @@ jobs:
 
       - name: Rename build output
         run: |
-          $sourceDir = "target\release"
-          $sourceName = "Zed-windows-amd64.exe"
+          $sourceDir = "zed/target/release"
+          $sourceName = "Zed.exe"
           $newFileName = "Zed-windows-amd64-$env:LATEST_TAG.exe"
           $sourcePath = Join-Path -Path $sourceDir -ChildPath $sourceName
           $destinationPath = Join-Path -Path $sourceDir -ChildPath $newFileName
