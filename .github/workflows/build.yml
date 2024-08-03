@@ -237,8 +237,29 @@ jobs:
         working-directory: ./zed
         run: |
           $certificatePath = Join-Path -Path $env:GITHUB_WORKSPACE -ChildPath "zed_cert.pfx"
+          $msixPath = Join-Path -Path $PWD -ChildPath "Zed-windows-amd64-$env:LATEST_TAG.msix"
+          
+          Write-Host "Certificate path: $certificatePath"
+          Write-Host "MSIX path: $msixPath"
+          
+          if (-not (Test-Path $certificatePath)) {
+            Write-Host "Error: Certificate file not found"
+            exit 1
+          }
+          
+          if (-not (Test-Path $msixPath)) {
+            Write-Host "Error: MSIX file not found"
+            Get-ChildItem -Recurse -Filter *.msix | Select-Object FullName, Length, CreationTime, LastWriteTime
+            exit 1
+          }
+          
           $signtool = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe"
-          & $signtool sign /fd SHA256 /a /f $certificatePath /p "${{ secrets.CERTIFICATE_PASSWORD }}" "Zed-windows-amd64-$env:LATEST_TAG.msix"
+          & $signtool sign /fd SHA256 /a /f $certificatePath /p "${{ secrets.CERTIFICATE_PASSWORD }}" $msixPath
+          
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "SignTool failed with exit code $LASTEXITCODE"
+            exit 1
+          }
 
       - name: Create MSIX package
         run: |
