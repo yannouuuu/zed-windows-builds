@@ -233,11 +233,39 @@ jobs:
           $certificatePath = Join-Path -Path $env:GITHUB_WORKSPACE -ChildPath "zed_cert.pfx"
           [IO.File]::WriteAllBytes($certificatePath, $pfxBytes)
 
+      - name: Create MSIX package
+        working-directory: ./zed
+        run: |
+          $outputPackage = "Zed-windows-amd64-$env:LATEST_TAG.msix"
+          $mappingFile = "mapping.txt"
+
+          # Create mapping file
+          @"
+          [Files]
+          "target\release\Zed.exe" "Zed.exe"
+          "AppxManifest.xml" "AppxManifest.xml"
+          "assets\Square44x44Logo.png" "assets\Square44x44Logo.png"
+          "assets\Square150x150Logo.png" "assets\Square150x150Logo.png"
+          "assets\LargeTile.png" "assets\LargeTile.png"
+          "assets\SmallTile.png" "assets\SmallTile.png"
+          "assets\StoreLogo.png" "assets\StoreLogo.png"
+          "@ | Out-File -Encoding utf8 $mappingFile
+
+          # Create the MSIX package
+          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" pack /f $mappingFile /p $outputPackage
+
+          if (Test-Path $outputPackage) {
+            Write-Host "MSIX package created successfully: $outputPackage"
+          } else {
+            Write-Host "Error: Failed to create MSIX package"
+            exit 1
+          }
+
       - name: Sign MSIX package
         working-directory: ./zed
         run: |
           $certificatePath = Join-Path -Path $env:GITHUB_WORKSPACE -ChildPath "zed_cert.pfx"
-          $msixPath = Join-Path -Path $PWD -ChildPath "Zed-windows-amd64-$env:LATEST_TAG.msix"
+          $msixPath = "Zed-windows-amd64-$env:LATEST_TAG.msix"
           
           Write-Host "Certificate path: $certificatePath"
           Write-Host "MSIX path: $msixPath"
@@ -260,27 +288,6 @@ jobs:
             Write-Host "SignTool failed with exit code $LASTEXITCODE"
             exit 1
           }
-
-      - name: Create MSIX package
-        run: |
-          cd zed
-          $outputPackage = "Zed-windows-amd64-$env:LATEST_TAG.msix"
-          $mappingFile = "mapping.txt"
-
-          # Create mapping file
-          @"
-          [Files]
-          "target\release\Zed.exe" "Zed.exe"
-          "AppxManifest.xml" "AppxManifest.xml"
-          "assets\Square44x44Logo.png" "assets\Square44x44Logo.png"
-          "assets\Square150x150Logo.png" "assets\Square150x150Logo.png"
-          "assets\LargeTile.png" "assets\LargeTile.png"
-          "assets\SmallTile.png" "assets\SmallTile.png"
-          "assets\StoreLogo.png" "assets\StoreLogo.png"
-          "@ | Out-File -Encoding utf8 $mappingFile
-
-          # Create the MSIX package
-          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" pack /f $mappingFile /p $outputPackage
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
