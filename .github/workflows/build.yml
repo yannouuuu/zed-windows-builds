@@ -222,9 +222,12 @@ jobs:
           }
 
       - name: List directory contents
+        working-directory: ./zed
         run: |
-          cd zed
-          Get-ChildItem -Path . -File
+          Write-Host "Current directory:"
+          Get-Location
+          Write-Host "Directory contents:"
+          Get-ChildItem -Recurse | Select-Object FullName, Length, CreationTime, LastWriteTime
 
       - name: Decode the Pfx
         run: |
@@ -239,7 +242,7 @@ jobs:
           $outputPackage = "Zed-windows-amd64-$env:LATEST_TAG.msix"
           $mappingFile = "mapping.txt"
 
-          # Create mapping file
+          # Create mapping file with correct path
           @"
           [Files]
           "target\release\Zed.exe" "Zed.exe"
@@ -250,6 +253,20 @@ jobs:
           "assets\SmallTile.png" "assets\SmallTile.png"
           "assets\StoreLogo.png" "assets\StoreLogo.png"
           "@ | Out-File -Encoding utf8 $mappingFile
+
+          # Display mapping file contents
+          Write-Host "Mapping file contents:"
+          Get-Content $mappingFile
+
+          # Verify all files in mapping exist
+          Get-Content $mappingFile | Select-String -Pattern '^"([^"]+)"' | ForEach-Object {
+            $file = $_.Matches.Groups[1].Value
+            if (Test-Path $file) {
+              Write-Host "File exists: $file"
+            } else {
+              Write-Host "Error: File not found: $file"
+            }
+          }
 
           # Create the MSIX package
           & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" pack /f $mappingFile /p $outputPackage
