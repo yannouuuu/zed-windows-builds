@@ -241,11 +241,20 @@ jobs:
         run: |
           $outputPackage = "Zed-windows-amd64-$env:LATEST_TAG.msix"
           $mappingFile = "mapping.txt"
+          $zedExePath = "target\release\Zed.exe"
+
+          # Verify Zed.exe exists
+          if (-not (Test-Path $zedExePath)) {
+            Write-Host "Error: Zed.exe not found at $zedExePath"
+            Write-Host "Searching for Zed.exe:"
+            Get-ChildItem -Recurse -Filter Zed.exe | Select-Object FullName, Length, CreationTime, LastWriteTime
+            exit 1
+          }
 
           # Create mapping file with correct path
           @"
           [Files]
-          "target\release\Zed.exe" "Zed.exe"
+          "$zedExePath" "Zed.exe"
           "AppxManifest.xml" "AppxManifest.xml"
           "assets\Square44x44Logo.png" "assets\Square44x44Logo.png"
           "assets\Square150x150Logo.png" "assets\Square150x150Logo.png"
