@@ -89,6 +89,7 @@ jobs:
         run: |
           $releasePath = "zed/target/release"
           if (Test-Path $releasePath) {
+            # Clean up .exe files
             Get-ChildItem -Path $releasePath -Filter "Zed*.exe" | 
             Where-Object { $_.Name -ne "Zed-windows-amd64-$env:LATEST_TAG.exe" -and $_.Name -ne "Zed.exe" } | 
             ForEach-Object { 
@@ -102,6 +103,30 @@ jobs:
             if (Test-Path "$releasePath/Zed-windows-amd64-$env:LATEST_TAG.exe") {
               Remove-Item "$releasePath/Zed-windows-amd64-$env:LATEST_TAG.exe" -Force
               Write-Host "Removed Zed-windows-amd64-$env:LATEST_TAG.exe"
+            }
+
+            # Clean up .msix files
+            Get-ChildItem -Path $releasePath -Filter "*.msix" | ForEach-Object {
+              Remove-Item $_.FullName -Force
+              Write-Host "Removed old .msix file: $($_.Name)"
+            }
+
+            # Clean up .msixbundle files
+            Get-ChildItem -Path $releasePath -Filter "*.msixbundle" | ForEach-Object {
+              Remove-Item $_.FullName -Force
+              Write-Host "Removed old .msixbundle file: $($_.Name)"
+            }
+
+            # Clean up .appinstaller files
+            Get-ChildItem -Path $releasePath -Filter "*.appinstaller" | ForEach-Object {
+              Remove-Item $_.FullName -Force
+              Write-Host "Removed old .appinstaller file: $($_.Name)"
+            }
+
+            # List remaining contents of the release directory
+            Write-Host "Remaining contents of $releasePath:"
+            Get-ChildItem -Path $releasePath | ForEach-Object {
+              Write-Host "  $($_.Name)"
             }
           } else {
             Write-Host "Release directory does not exist yet: $releasePath"
