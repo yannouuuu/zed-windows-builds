@@ -236,6 +236,18 @@ jobs:
           $certificatePath = Join-Path -Path $env:GITHUB_WORKSPACE -ChildPath "zed_cert.pfx"
           [IO.File]::WriteAllBytes($certificatePath, $pfxBytes)
 
+      - name: Copy Zed executable
+        run: |
+          $sourceExe = "zed\target\release\deps\zed.exe"
+          $destExe = "zed\target\release\Zed.exe"
+          if (Test-Path $sourceExe) {
+            Copy-Item $sourceExe $destExe -Force
+            Write-Host "Copied Zed.exe to $destExe"
+          } else {
+            Write-Host "Error: Source Zed.exe not found at $sourceExe"
+            exit 1
+          }
+
       - name: Create MSIX package
         working-directory: ./zed
         run: |
