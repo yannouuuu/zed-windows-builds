@@ -124,12 +124,12 @@ jobs:
             }
 
             # List remaining contents of the release directory
-            Write-Host "Remaining contents of $releasePath:"
+            Write-Host "Remaining contents of ${releasePath}:"
             Get-ChildItem -Path $releasePath | ForEach-Object {
               Write-Host "  $($_.Name)"
             }
           } else {
-            Write-Host "Release directory does not exist yet: $releasePath"
+            Write-Host "Release directory does not exist yet: ${releasePath}"
           }
 
       - name: Build Zed
