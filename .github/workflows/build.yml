@@ -11,8 +11,26 @@ permissions:
   contents: write
 
 jobs:
+  set-version:
+    runs-on: ubuntu-latest
+    outputs:
+      latest_tag: ${{ steps.get_latest_tag.outputs.LATEST_TAG }}
+    steps:
+      - name: Get latest release tag
+        id: get_latest_tag
+        run: |
+          LATEST_TAG=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/latest | jq -r .tag_name)
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v0.0.0"
+          fi
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Latest tag: $LATEST_TAG"
+
   build-windows-amd64:
+    needs: set-version
     runs-on: windows-latest
+    env:
+      LATEST_TAG: ${{ needs.set-version.outputs.latest_tag }}
     steps:
       - name: Checkout Zed repository
         uses: actions/checkout@v4
@@ -67,16 +85,6 @@ jobs:
             C:/Users/runneradmin/.cargo/git/  
             C:/Users/runneradmin/.rustup/
           key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Get latest release tag
-        id: get_latest_tag
-        run: |
-          $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases | ForEach-Object { $_.tag_name } | Select-Object -First 1)
-          if (-not $latestTag) {
-            $latestTag = "v0.0.0"
-          }
-          echo "LATEST_TAG=$latestTag" >> $env:GITHUB_ENV
-          echo "Latest tag: $latestTag"
 
       - name: Debug - List directory structure
         run: |
@@ -277,8 +285,10 @@ jobs:
             zed/Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
 
   upload-to-release:
-    needs: [build-windows-amd64]
+    needs: [set-version, build-windows-amd64]
     runs-on: ubuntu-latest
+    env:
+      LATEST_TAG: ${{ needs.set-version.outputs.latest_tag }}
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -288,10 +298,7 @@ jobs:
       - name: Get latest release info
         id: get_release_info
         run: |
-          LATEST_TAG=$(curl -s https://api.github.com/repos/zed-industries/zed/releases | jq -r '.[0].tag_name')
-          LATEST_TAG=${LATEST_TAG:-v0.0.0}
-          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
-          RELEASE_BODY=$(curl -s https://api.github.com/repos/zed-industries/zed/releases | jq -r '.[0].body')
+          RELEASE_BODY=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/latest | jq -r '.body')
           echo "RELEASE_BODY<<EOF" >> $GITHUB_OUTPUT
           echo "$RELEASE_BODY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
