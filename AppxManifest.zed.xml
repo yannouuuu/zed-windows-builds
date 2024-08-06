@@ -18,7 +18,7 @@
     <rescap:Capability Name="runFullTrust" />
   </Capabilities>
   <Applications>
-    <Application Id="Zed" Executable="Zed.exe" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="Zed" Executable="Zed-windows-amd64-__LATEST_TAG__.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         DisplayName="Zed"
         Description="Zed Editor"
