@@ -241,15 +241,20 @@ jobs:
           
           $appInstallerContent = @"
           <?xml version="1.0" encoding="utf-8"?>
-          <AppInstaller Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller"
-                        Version="$version"
-                        xmlns="http://schemas.microsoft.com/appx/appinstaller/2017/2">
-            <MainBundle Name="Zed"
-                        Version="$version"
-                        Publisher="CN=ZedIndustries"
-                        Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"/>
+          <AppInstaller
+            xmlns="http://schemas.microsoft.com/appx/appinstaller/2018"
+            Version="$version"
+            Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller">
+            
+            <MainPackage
+              Name="Zed"
+              Version="$version"
+              Publisher="CN=ZedIndustries"
+              Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
+              ProcessorArchitecture="x64" />
+            
             <UpdateSettings>
-              <OnLaunch HoursBetweenUpdateChecks="0"/>
+              <OnLaunch HoursBetweenUpdateChecks="0" />
             </UpdateSettings>
           </AppInstaller>
           "@
