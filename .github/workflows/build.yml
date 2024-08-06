@@ -170,47 +170,17 @@ jobs:
         run: |
           cd zed
           Copy-Item ../build-repo/AppxManifest.zed.xml .
-          if (Test-Path "../build-repo/assets") {
-            Copy-Item ../build-repo/assets ./ -Recurse -Force
-            Write-Host "Copied assets from build-repo"
+          
+          # Copy contents of the @assets folder
+          if (Test-Path "../@assets") {
+            Copy-Item ../@assets ./ -Recurse -Force
+            Write-Host "Copied contents of @assets folder"
           } else {
-            Write-Host "Assets directory not found in build-repo."
+            Write-Host "Error: @assets folder not found"
+            exit 1
           }
           
-          if (-not (Test-Path "assets")) {
-            New-Item -Path "assets" -ItemType Directory
-            Write-Host "Created new assets directory"
-          } else {
-            Write-Host "Assets directory already exists"
-          }
-
-          # Check if Zed.exe exists before trying to extract icon
-          $zedExePath = "target/release/Zed-windows-amd64-$env:LATEST_TAG.exe"
-          if (Test-Path $zedExePath) {
-            # Extract and convert icon
-            $iconPath = "zed_icon.ico"
-            Add-Type -AssemblyName System.Drawing
-            try {
-              $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($zedExePath)
-              $icon.ToBitmap().Save($iconPath, [System.Drawing.Imaging.ImageFormat]::Png)
-          
-              magick convert $iconPath -resize 44x44 assets/Square44x44Logo.png
-              magick convert $iconPath -resize 150x150 assets/Square150x150Logo.png
-              magick convert $iconPath -resize 310x310 assets/LargeTile.png
-              magick convert $iconPath -resize 71x71 assets/SmallTile.png
-              magick convert $iconPath -resize 50x50 assets/StoreLogo.png
-            } catch {
-              Write-Host "Error extracting or converting icon: $_"
-              # Use placeholder images if icon extraction fails
-              Copy-Item ../build-repo/placeholder_*.png assets/
-            }
-          } else {
-            Write-Host "Zed-windows-amd64-$env:LATEST_TAG.exe not found at $zedExePath. Using placeholder images."
-            # Use placeholder images
-            Copy-Item ../build-repo/placeholder_*.png assets/
-          }
-
-          # Ensure all required assets exist
+          # Check and copy necessary icons
           $requiredAssets = @(
             "Square44x44Logo.png",
             "Square150x150Logo.png",
@@ -218,41 +188,69 @@ jobs:
             "SmallTile.png",
             "StoreLogo.png"
           )
+          
           foreach ($asset in $requiredAssets) {
-            if (-not (Test-Path "assets/$asset")) {
-              Write-Host "Warning: $asset not found. Creating a blank image."
-              magick convert -size 44x44 xc:transparent "assets/$asset"
+            $sourcePath = "@assets/$asset"
+            $destPath = "assets/$asset"
+            if (Test-Path $sourcePath) {
+              Copy-Item $sourcePath $destPath -Force
+              Write-Host "Copied $asset from @assets"
+            } else {
+              Write-Host "Warning: $asset not found in @assets. Creating an empty image."
+              magick convert -size 44x44 xc:transparent $destPath
             }
           }
 
-          # Final check if assets/ root directory should exist
+          # Final check of the assets folder
           if (Test-Path "assets") {
-            Write-Host "Assets directory contents:"
+            Write-Host "Contents of assets folder:"
             Get-ChildItem -Path "assets" | ForEach-Object { Write-Host "  $($_.Name)" }
           } else {
-            Write-Host "Error: Assets directory not found at the expected location"
+            Write-Host "Error: assets folder not found at the expected location"
             exit 1
           }
+
+      - name: Update AppxManifest with correct version and tag
+        run: |
+          $version = $env:LATEST_TAG -replace '^v', ''
+          $versionParts = $version -split '-'
+          $mainVersion = $versionParts[0]
+          
+          # Ensure we have four parts to the version number
+          $versionNumbers = $mainVersion -split '\.'
+          if ($versionNumbers.Length -lt 4) {
+            $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
+          }
+          
+          (Get-Content AppxManifest.zed.xml) | 
+          ForEach-Object {
+            $_ -replace '__VERSION__', $mainVersion `-replace '__LATEST_TAG__', $env:LATEST_TAG
+          } |
+          Set-Content AppxManifest.zed.xml
 
       - name: Prepare App Installer manifest
         run: |
           cd zed
-          $version = $env:LATEST_TAG -replace '^v', '' -replace '-pre$', ''
-          $version = $version -replace '^(\d+\.\d+\.\d+).*$', '$1'  # Keep only X.Y.Z
-          if ($version -notmatch '^\d+\.\d+\.\d+\.\d+$') {
-            $version = $version + '.0'  # Add a fourth number if necessary
+          $version = $env:LATEST_TAG -replace '^v', ''
+          $versionParts = $version -split '-'
+          $mainVersion = $versionParts[0]
+          
+          # Ensure we have four parts to the version number
+          $versionNumbers = $mainVersion -split '\.'
+          if ($versionNumbers.Length -lt 4) {
+            $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
           }
           
           $appInstallerContent = @"
           <?xml version="1.0" encoding="utf-8"?>
           <AppInstaller
             xmlns="http://schemas.microsoft.com/appx/appinstaller/2018"
-            Version="$version"
+            Version="$mainVersion"
             Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller">
             
             <MainPackage
               Name="Zed"
-              Version="$version"
+              Version="$mainVersion"
               Publisher="CN=ZedIndustries"
               Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
               ProcessorArchitecture="x64" />
