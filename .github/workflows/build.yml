@@ -291,16 +291,28 @@ jobs:
             zed/target/release/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
             zed/Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
 
+      - name: Debug - List uploaded artifacts
+        run: |
+          echo "Uploaded artifact name: Zed-windows-amd64-${{ env.LATEST_TAG }}"
+          echo "LATEST_TAG value: ${{ env.LATEST_TAG }}"
+
   upload-to-release:
     needs: [set-version, build-windows-amd64]
     runs-on: ubuntu-latest
     env:
       LATEST_TAG: ${{ needs.set-version.outputs.latest_tag }}
     steps:
+      - name: Debug - Print LATEST_TAG
+        run: | 
+          echo "LATEST_TAG value: ${{ env.LATEST_TAG }}"
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           name: Zed-windows-amd64-${{ env.LATEST_TAG }}
+
+      - name: Debug - List downloaded files
+        run: ls -R
 
       - name: Get latest release info
         id: get_release_info
@@ -375,4 +387,5 @@ jobs:
         with:
           branch: update
           file_pattern: build.md *-update.json
+          commit_message: Bump version ${{ env.LATEST_TAG }}
           commit_message: Bump version ${{ env.LATEST_TAG }}
