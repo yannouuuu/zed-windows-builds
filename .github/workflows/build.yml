@@ -190,7 +190,7 @@ jobs:
           }
 
           # Check if Zed.exe exists before trying to extract icon
-          $zedExePath = "target/release/Zed.exe"
+          $zedExePath = "target/release/Zed-windows-amd64-$env:LATEST_TAG.exe"
           if (Test-Path $zedExePath) {
             # Extract and convert icon
             $iconPath = "zed_icon.ico"
@@ -271,22 +271,20 @@ jobs:
           Write-Host "Directory contents:"
           Get-ChildItem -Recurse | Select-Object FullName, Length, CreationTime, LastWriteTime
 
-      - name: Copy Zed executable
+      - name: Prepare and copy artifacts
         run: |
-          $sourceExe = "zed\target\release\deps\zed.exe"
-          $destExe = "zed\target\release\Zed.exe"
+          $sourceExe = "zed\target\release\Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
+          $appInstaller = "zed\Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller"
+
+          # Copy artifacts to root
           if (Test-Path $sourceExe) {
-            Copy-Item $sourceExe $destExe -Force
-            Write-Host "Copied Zed.exe to $destExe"
+            Copy-Item $sourceExe .
+            Copy-Item $appInstaller .
+            Write-Host "Copied artifacts to root directory"
           } else {
-            Write-Host "Error: Source Zed.exe not found at $sourceExe"
+            Write-Host "Error: Tagged Zed executable not found at $sourceExe"
             exit 1
           }
-
-      - name: Copy exe artifacts to root
-        run: |
-          Copy-Item "zed/target/release/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe" .
-          Copy-Item "zed/Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller" .
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
