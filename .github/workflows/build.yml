@@ -20,13 +20,8 @@ jobs:
         id: get_latest_tag
         run: |
           LATEST_TAG=$(curl -s "https://api.github.com/repos/zed-industries/zed/releases" | jq -r 'first | .tag_name')
-          if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" = "null" ]; then
-            LATEST_TAG="v0.0.0"
-            echo "No tag found, using default: $LATEST_TAG"
-          else
-            echo "Latest tag found (including pre-releases): $LATEST_TAG"
-          fi
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+          echo "Latest tag found (including pre-releases): $LATEST_TAG"
 
   build-windows-amd64:
     needs: set-version
@@ -331,9 +326,9 @@ jobs:
         run: |
           RELEASE_INFO=$(curl -s "https://api.github.com/repos/zed-industries/zed/releases/tags/${{ env.LATEST_TAG }}")
           RELEASE_BODY=$(echo "$RELEASE_INFO" | jq -r '.body // "No release notes available."')
-          echo "RELEASE_BODY<<EOF" >> $GITHUB_OUTPUT
-          echo "$RELEASE_BODY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+          echo "$RELEASE_BODY" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Check existing release
         id: check_release
@@ -341,15 +336,19 @@ jobs:
           RELEASE_EXISTS=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ env.LATEST_TAG }}")
-          echo "RELEASE_EXISTS=$([[ $RELEASE_EXISTS == "200" ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          echo "RELEASE_EXISTS=$([[ $RELEASE_EXISTS == "200" ]] && echo "true" || echo "false")" >> $GITHUB_ENV
 
+      - name: Debug - Print LATEST_TAG
+        run: | 
+          echo "LATEST_TAG value: ${{ needs.set-version.outputs.latest_tag }}"
+          
       - name: Create or update release
         uses: softprops/action-gh-release@v1
-        if: steps.check_release.outputs.RELEASE_EXISTS == 'false'
+        if: env.RELEASE_EXISTS == 'false'
         with:
           tag_name: ${{ env.LATEST_TAG }}
           name: ${{ env.LATEST_TAG }}
-          body: ${{ steps.get_release_info.outputs.RELEASE_BODY }}
+          body: ${{ env.RELEASE_BODY }}
           draft: false
           prerelease: false
           files: |
@@ -360,11 +359,11 @@ jobs:
 
       - name: Update existing release
         uses: softprops/action-gh-release@v1
-        if: steps.check_release.outputs.RELEASE_EXISTS == 'true'
+        if: env.RELEASE_EXISTS == 'true'
         with:
           tag_name: ${{ env.LATEST_TAG }}
           name: ${{ env.LATEST_TAG }}
-          body: ${{ steps.get_release_info.outputs.RELEASE_BODY }}
+          body: ${{ env.RELEASE_BODY }}
           draft: false
           prerelease: false
           files: |
