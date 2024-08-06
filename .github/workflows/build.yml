@@ -231,7 +231,7 @@ jobs:
           
           $appInstallerContent = @"
           <?xml version="1.0" encoding="utf-8"?>
-          <AppInstaller Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed.appinstaller"
+          <AppInstaller Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller"
                         Version="$version"
                         xmlns="http://schemas.microsoft.com/appx/appinstaller/2017/2">
             <MainBundle Name="Zed"
@@ -244,8 +244,9 @@ jobs:
           </AppInstaller>
           "@
           
-          $appInstallerContent | Out-File -FilePath "Zed.appinstaller" -Encoding utf8
-          Write-Host "Created Zed.appinstaller file"
+          $appInstallerFileName = "Zed-windows-amd64-$env:LATEST_TAG.appinstaller"
+          $appInstallerContent | Out-File -FilePath $appInstallerFileName -Encoding utf8
+          Write-Host "Created $appInstallerFileName file"
 
       - name: List directory contents
         working-directory: ./zed
@@ -273,7 +274,7 @@ jobs:
           name: Zed-windows-amd64-${{ env.LATEST_TAG }}
           path: |
             zed/target/release/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
-            zed/Zed.appinstaller
+            zed/Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
 
   upload-to-release:
     needs: [build-windows-amd64]
@@ -346,8 +347,8 @@ jobs:
           
           curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/octet-stream" \
-            --data-binary @Zed.appinstaller \
-            "$upload_url?name=Zed.appinstaller"
+            --data-binary @Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller \
+            "$upload_url?name=Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller"
 
       - name: Checkout build repository
         uses: actions/checkout@v4
