@@ -329,7 +329,8 @@ jobs:
       - name: Get latest release info
         id: get_release_info
         run: |
-          RELEASE_BODY=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/ | jq -r '.body')
+          RELEASE_INFO=$(curl -s "https://api.github.com/repos/zed-industries/zed/releases/tags/${{ env.LATEST_TAG }}")
+          RELEASE_BODY=$(echo "$RELEASE_INFO" | jq -r '.body // "No release notes available."')
           echo "RELEASE_BODY<<EOF" >> $GITHUB_OUTPUT
           echo "$RELEASE_BODY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
