@@ -283,13 +283,18 @@ jobs:
             exit 1
           }
 
+      - name: Copy exe artifacts to root
+        run: |
+          Copy-Item "zed/target/release/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe" .
+          Copy-Item "zed/Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller" .
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Zed-windows-amd64-${{ env.LATEST_TAG }}
           path: |
-            zed/target/release/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
-            zed/Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
 
       - name: Debug - List uploaded artifacts
         run: |
@@ -366,11 +371,13 @@ jobs:
             "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ env.LATEST_TAG }}" \
             | jq -r .upload_url | sed 's/{?name,label}//') 
           
+          # Upload .exe file
           curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @Zed-windows-amd64-${{ env.LATEST_TAG }}.exe \
             "$upload_url?name=Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
           
+          # Upload .appinstaller file
           curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller \
