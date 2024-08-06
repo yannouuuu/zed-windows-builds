@@ -344,52 +344,34 @@ jobs:
           echo "RELEASE_EXISTS=$([[ $RELEASE_EXISTS == "200" ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
       - name: Create or update release
-        id: release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v1
         if: steps.check_release.outputs.RELEASE_EXISTS == 'false'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ env.LATEST_TAG }}
-          release_name: ${{ env.LATEST_TAG }}
+          name: ${{ env.LATEST_TAG }}
           body: ${{ steps.get_release_info.outputs.RELEASE_BODY }}
           draft: false
           prerelease: false
-
-      - name: Update existing release
-        if: steps.check_release.outputs.RELEASE_EXISTS == 'true'
-        run: |
-          curl -X PATCH \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ env.LATEST_TAG }}" \
-            -d '{
-              "tag_name": "${{ env.LATEST_TAG }}",
-              "name": "${{ env.LATEST_TAG }}",
-              "body": ${{ toJson(steps.get_release_info.outputs.RELEASE_BODY) }},
-              "draft": false,
-              "prerelease": false
-            }'
-
-      - name: Upload release assets
+          files: |
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          upload_url=$(curl -sH "Authorization: token $GITHUB_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ env.LATEST_TAG }}" \
-            | jq -r .upload_url | sed 's/{?name,label}//') 
-          
-          # Upload .exe file
-          curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Content-Type: application/octet-stream" \
-            --data-binary @Zed-windows-amd64-${{ env.LATEST_TAG }}.exe \
-            "$upload_url?name=Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
-          
-          # Upload .appinstaller file
-          curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Content-Type: application/octet-stream" \
-            --data-binary @Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller \
-            "$upload_url?name=Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller"
+
+      - name: Update existing release
+        uses: softprops/action-gh-release@v1
+        if: steps.check_release.outputs.RELEASE_EXISTS == 'true'
+        with:
+          tag_name: ${{ env.LATEST_TAG }}
+          name: ${{ env.LATEST_TAG }}
+          body: ${{ steps.get_release_info.outputs.RELEASE_BODY }}
+          draft: false
+          prerelease: false
+          files: |
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout build repository
         uses: actions/checkout@v4
