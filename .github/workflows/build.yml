@@ -212,11 +212,9 @@ jobs:
             $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
           }
           
-          (Get-Content AppxManifest.zed.xml) | 
-          ForEach-Object {
-            $_ -replace '__VERSION__', $mainVersion `-replace '__LATEST_TAG__', $env:LATEST_TAG
-          } |
-          Set-Content AppxManifest.zed.xml
+          $content = Get-Content AppxManifest.zed.xml -Raw
+          $content = $content.Replace('__VERSION__', $mainVersion).Replace('__LATEST_TAG__', $env:LATEST_TAG)
+          Set-Content AppxManifest.zed.xml -Value $content -NoNewline
 
       - name: Prepare App Installer manifest
         run: |
