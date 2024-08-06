@@ -173,7 +173,12 @@ jobs:
           
           # Copy contents of the assets folder
           if (Test-Path "assets") {
-            Copy-Item assets ./ -Recurse -Force
+            Get-ChildItem -Path "assets" -Recurse | ForEach-Object {
+              $targetPath = $_.FullName -replace [regex]::Escape((Get-Location)), (Get-Location)
+              if (-not (Test-Path $targetPath)) {
+                Copy-Item $_.FullName $targetPath -Force
+              }
+            }
             Write-Host "Copied contents of assets folder"
           } else {
             Write-Host "Error: assets folder not found"
