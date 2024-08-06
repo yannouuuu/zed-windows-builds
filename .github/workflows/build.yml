@@ -388,4 +388,3 @@ jobs:
           branch: update
           file_pattern: build.md *-update.json
           commit_message: Bump version ${{ env.LATEST_TAG }}
-          commit_message: Bump version ${{ env.LATEST_TAG }}
