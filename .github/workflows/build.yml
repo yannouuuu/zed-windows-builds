@@ -171,12 +171,12 @@ jobs:
           cd zed
           Copy-Item ../build-repo/AppxManifest.zed.xml .
           
-          # Copy contents of the @assets folder
-          if (Test-Path "../@assets") {
-            Copy-Item ../@assets ./ -Recurse -Force
-            Write-Host "Copied contents of @assets folder"
+          # Copy contents of the assets folder
+          if (Test-Path "assets") {
+            Copy-Item assets ./ -Recurse -Force
+            Write-Host "Copied contents of assets folder"
           } else {
-            Write-Host "Error: @assets folder not found"
+            Write-Host "Error: assets folder not found"
             exit 1
           }
           
@@ -190,14 +190,12 @@ jobs:
           )
           
           foreach ($asset in $requiredAssets) {
-            $sourcePath = "@assets/$asset"
-            $destPath = "assets/$asset"
-            if (Test-Path $sourcePath) {
-              Copy-Item $sourcePath $destPath -Force
-              Write-Host "Copied $asset from @assets"
+            $assetPath = "assets/$asset"
+            if (Test-Path $assetPath) {
+              Write-Host "$asset exists in assets folder"
             } else {
-              Write-Host "Warning: $asset not found in @assets. Creating an empty image."
-              magick convert -size 44x44 xc:transparent $destPath
+              Write-Host "Warning: $asset not found in assets folder. Creating an empty image."
+              magick convert -size 44x44 xc:transparent $assetPath
             }
           }
 
