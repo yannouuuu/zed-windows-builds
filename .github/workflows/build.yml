@@ -171,21 +171,13 @@ jobs:
           cd zed
           Copy-Item ../build-repo/AppxManifest.zed.xml .
           
-          # Copy contents of the assets folder
-          if (Test-Path "assets") {
-            Get-ChildItem -Path "assets" -Recurse | ForEach-Object {
-              $targetPath = $_.FullName -replace [regex]::Escape((Get-Location)), (Get-Location)
-              if (-not (Test-Path $targetPath)) {
-                Copy-Item $_.FullName $targetPath -Force
-              }
-            }
-            Write-Host "Copied contents of assets folder"
-          } else {
+          # Check if the assets folder exists
+          if (-not (Test-Path "assets")) {
             Write-Host "Error: assets folder not found"
             exit 1
           }
           
-          # Check and copy necessary icons
+          # Check for necessary icons
           $requiredAssets = @(
             "Square44x44Logo.png",
             "Square150x150Logo.png",
@@ -204,14 +196,9 @@ jobs:
             }
           }
 
-          # Final check of the assets folder
-          if (Test-Path "assets") {
-            Write-Host "Contents of assets folder:"
-            Get-ChildItem -Path "assets" | ForEach-Object { Write-Host "  $($_.Name)" }
-          } else {
-            Write-Host "Error: assets folder not found at the expected location"
-            exit 1
-          }
+          # Display the contents of the assets folder
+          Write-Host "Contents of assets folder:"
+          Get-ChildItem -Path "assets" | ForEach-Object { Write-Host "  $($_.Name)" }
 
       - name: Update AppxManifest with correct version and tag
         run: |
