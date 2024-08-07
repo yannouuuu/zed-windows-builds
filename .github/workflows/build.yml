@@ -200,8 +200,17 @@ jobs:
           Write-Host "Contents of assets folder:"
           Get-ChildItem -Path "assets" | ForEach-Object { Write-Host "  $($_.Name)" }
 
+      - name: Debug - List zed directory contents
+        run: |
+          cd zed
+          Write-Host "Current directory:"
+            Get-Location
+            Write-Host "Directory contents:"
+            Get-ChildItem -Force | Select-Object Name, LastWriteTime, Length
+
       - name: Update AppxManifest with correct version and tag
         run: |
+          cd zed
           $version = $env:LATEST_TAG -replace '^v', ''
           $versionParts = $version -split '-'
           $mainVersion = $versionParts[0]
@@ -288,6 +297,14 @@ jobs:
         run: |
           echo "Uploaded artifact name: Zed-windows-amd64-${{ env.LATEST_TAG }}"
           echo "LATEST_TAG value: ${{ env.LATEST_TAG }}"
+
+      - name: Debug - List zed directory contents
+        run: |
+          cd zed
+          Write-Host "Current directory:"
+          Get-Location
+          Write-Host "Directory contents:"
+          Get-ChildItem -Force | Select-Object Name, LastWriteTime, Length
 
   upload-to-release:
     needs: [set-version, build-windows-amd64]
