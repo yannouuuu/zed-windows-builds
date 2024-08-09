@@ -10,6 +10,18 @@ permissions:
   contents: write
 
 jobs:
+  set-version:
+    runs-on: ubuntu-latest
+    outputs:
+      latest_tag: ${{ steps.get_latest_tag.outputs.LATEST_TAG }}
+    steps:
+      - name: Get latest release tag (including pre-releases)
+        id: get_latest_tag
+        run: |
+          LATEST_TAG=$(curl -s "https://api.github.com/repos/zed-industries/zed/releases" | jq -r 'first | .tag_name')
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+          echo "Latest tag found (including pre-releases): $LATEST_TAG"
+
   build-windows-amd64:
     runs-on: windows-latest
     steps:
