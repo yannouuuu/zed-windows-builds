@@ -69,6 +69,8 @@ jobs:
           if (-not $latestTag) {
             $latestTag = "v0.0.0"
           }
+          echo "LATEST_TAG=$latestTag" >> $env:GITHUB_ENV
+          echo "Latest tag: $latestTag"
 
           $sourceDir = "target\release"
           $sourceName = "Zed-windows-amd64.exe"
@@ -88,7 +90,6 @@ jobs:
             exit 1
           }
 
-
       - uses: actions/upload-artifact@v4
         with:
           name: Zed-windows-amd64-${{ env.LATEST_TAG }}
@@ -100,8 +101,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: Zed-*
-          merge-multiple: true
+          name: Zed-windows-amd64-${{ needs.build-windows-amd64.outputs.LATEST_TAG }}
           path: target/release
 
       - name: Verify downloaded artifacts
@@ -206,8 +206,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./target/release/Zed-windows-amd64-${{ steps.get_latest_tag.outputs.LATEST_TAG }}.exe
-          asset_name: Zed-windows-amd64-${{ steps.get_latest_tag.outputs.LATEST_TAG }}.exe
+          asset_path: ./target/release/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+          asset_name: Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
           asset_content_type: application/octet-stream
 
       - uses: actions/checkout@v4
