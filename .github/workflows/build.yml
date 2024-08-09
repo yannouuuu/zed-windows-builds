@@ -20,8 +20,21 @@ jobs:
         id: get_latest_tag
         run: |
           LATEST_TAG=$(curl -s "https://api.github.com/repos/zed-industries/zed/releases" | jq -r 'first | .tag_name')
-          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "Latest tag found (including pre-releases): $LATEST_TAG"
+
+      - name: Debug - Print LATEST_TAG
+        run: |
+          echo "LATEST_TAG value: ${{ steps.get_latest_tag.outputs.LATEST_TAG }}"
+          if [ -z "${{ steps.get_latest_tag.outputs.LATEST_TAG }}" ]; then
+            echo "Error: LATEST_TAG is empty or null"
+            exit 1
+          fi
+
+      - name: Debug - Print API response
+        run: |
+          API_RESPONSE=$(curl -s "https://api.github.com/repos/zed-industries/zed/releases")
+          echo "API Response: $API_RESPONSE"
 
   build-windows-amd64:
     needs: set-version
