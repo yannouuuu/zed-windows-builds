@@ -77,7 +77,6 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-            zed/target/
             C:/Users/runneradmin/.cargo/registry/
             C:/Users/runneradmin/.cargo/git/  
             C:/Users/runneradmin/.rustup/
@@ -125,6 +124,14 @@ jobs:
             Write-Host "Zed.exe built successfully"
           } else {
             Write-Host "Zed.exe not found after build"
+            exit 1
+          }
+
+      - name: Debug - Print LATEST_TAG
+        run: |
+          Write-Host "LATEST_TAG value: $env:LATEST_TAG"
+          if ([string]::IsNullOrEmpty($env:LATEST_TAG)) {
+            Write-Host "Error: LATEST_TAG is empty or null"
             exit 1
           }
 
