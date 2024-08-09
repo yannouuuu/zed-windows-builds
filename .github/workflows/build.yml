@@ -79,7 +79,7 @@ jobs:
       - name: Get latest release tag from GitHub API
         id: get_latest_tag
         run: |
-          $latestRelease = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases/latest)
+          $latestRelease = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases/)
           $latestTag = $latestRelease.tag_name
           $isPrerelease = $latestRelease.prerelease.ToString().ToLower()
           if (-not $latestTag) {
@@ -142,7 +142,7 @@ jobs:
       - name: Get latest release tag
         id: get_latest_tag
         run: |
-          LATEST_RELEASE=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/latest)
+          LATEST_RELEASE=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/)
           LATEST_TAG=$(echo $LATEST_RELEASE | jq -r '.tag_name')
           IS_PRERELEASE=$(echo $LATEST_RELEASE | jq -r '.prerelease')
           if [ -z "$LATEST_TAG" ]; then
@@ -159,7 +159,7 @@ jobs:
         run: |
           RELEASE_DATA=$(curl -s \
             -H "Authorization: token $GITHUB_TOKEN" \
-            https://api.github.com/repos/zed-industries/zed/releases/latest)
+            https://api.github.com/repos/zed-industries/zed/releases/)
           BODY=$(echo "$RELEASE_DATA" | jq -r '.body')
           echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
           echo "$BODY" >> $GITHUB_ENV
