@@ -10,18 +10,6 @@ permissions:
   contents: write
 
 jobs:
-  set-version:
-    runs-on: ubuntu-latest
-    outputs:
-      latest_tag: ${{ steps.get_latest_tag.outputs.LATEST_TAG }}
-    steps:
-      - name: Get latest release tag (including pre-releases)
-        id: get_latest_tag
-        run: |
-          LATEST_TAG=$(curl -s "https://api.github.com/repos/zed-industries/zed/releases" | jq -r 'first | .tag_name')
-          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
-          echo "Latest tag found (including pre-releases): $LATEST_TAG"
-
   build-windows-amd64:
     runs-on: windows-latest
     steps:
@@ -47,7 +35,6 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-
       # Clean up old build artifacts
       - name: Clean up old build artifacts
         run: |
@@ -59,7 +46,6 @@ jobs:
               Write-Host "Removed old artifact: $($artifact.Name)"
             }
           }
-
       # Build Zed
       - run: cargo build --release -j 4
       - run: copy target/release/Zed.exe target/release/Zed-windows-amd64.exe
@@ -71,18 +57,20 @@ jobs:
             echo "Build failed, file does not exist."
             exit 1
           }
-
       # Get latest release tag from GitHub API + fallback to v0.0.0 if no tag is found
       - name: Get latest release tag from GitHub API
         id: get_latest_tag
         run: |
-          $latestTag = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases | ForEach-Object { $_.tag_name } | Select-Object -First 1)
+          $latestRelease = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases/latest)
+          $latestTag = $latestRelease.tag_name
+          $isPrerelease = $latestRelease.prerelease.ToString().ToLower()
           if (-not $latestTag) {
             $latestTag = "v0.0.0"
+            $isPrerelease = "false"
           }
           echo "LATEST_TAG=$latestTag" >> $env:GITHUB_ENV
-          echo "Latest tag: $latestTag"
-
+          echo "IS_PRERELEASE=$isPrerelease" >> $env:GITHUB_ENV
+          echo "Latest tag: $latestTag, Is Pre-release: $isPrerelease"
       - name: Rename build output
         run: |
           $sourceDir = "target\release"
@@ -90,7 +78,6 @@ jobs:
           $newFileName = "Zed-windows-amd64-$env:LATEST_TAG.exe"
           $sourcePath = Join-Path -Path $sourceDir -ChildPath $sourceName
           $destinationPath = Join-Path -Path $sourceDir -ChildPath $newFileName
-
           if (Test-Path -Path $sourcePath) {
             Rename-Item -Path $sourcePath -NewName $newFileName -Force
             Write-Host "File renamed successfully to $newFileName"
@@ -98,7 +85,6 @@ jobs:
             Write-Host "Error: Source file $sourcePath not found"
             exit 1
           }
-
       - uses: actions/upload-artifact@v4
         with:
           name: Zed-windows-amd64-${{ env.LATEST_TAG }}
@@ -110,16 +96,16 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: Zed-windows-amd64-${{ needs.build-windows-amd64.outputs.LATEST_TAG }}
+          pattern: Zed-*
+          merge-multiple: true
           path: target/release
-
+          
       - name: Verify downloaded artifacts
         run: |
           echo "Contents of current directory:"
           ls -R
           echo "Contents of target/release directory:"
           ls -l target/release || echo "target/release directory does not exist"
-
       - name: Verify environment variables and files
         run: |
           echo "LATEST_TAG=$LATEST_TAG"
@@ -131,22 +117,23 @@ jobs:
           ls -l target/release || echo "target/release directory does not exist"
           echo "Searching for Zed-windows-amd64 files:"
           find . -name "Zed-windows-amd64*"
-
       - name: Get current date
         id: get_date
-        run: echo "DATE=$(date +'%m-%d-%Y')" >> $GITHUB_OUTPUT
-
-      - name: Get latest release tag from GitHub API
+        run: |
+          echo "DATE=$(date +'%m-%d-%Y')" >> $GITHUB_ENV
+      - name: Get latest release tag
         id: get_latest_tag
         run: |
-          LATEST_TAG=$(curl -s https://api.github.com/repos/zed-industries/zed/releases | jq -r '.[0].tag_name // empty')
+          LATEST_RELEASE=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/latest)
+          LATEST_TAG=$(echo $LATEST_RELEASE | jq -r '.tag_name')
+          IS_PRERELEASE=$(echo $LATEST_RELEASE | jq -r '.prerelease')
           if [ -z "$LATEST_TAG" ]; then
             LATEST_TAG="v0.0.0"
+            IS_PRERELEASE=false
           fi
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
-          echo "Latest tag: $LATEST_TAG"
-        shell: bash
-
+          echo "IS_PRERELEASE=$IS_PRERELEASE" >> $GITHUB_ENV
+          echo "Latest tag: $LATEST_TAG, Is Pre-release: $IS_PRERELEASE"
       - name: Fetch release body from GitHub API
         id: fetch_body
         env:
@@ -154,60 +141,22 @@ jobs:
         run: |
           RELEASE_DATA=$(curl -s \
             -H "Authorization: token $GITHUB_TOKEN" \
-            https://api.github.com/repos/zed-industries/zed/releases/)
+            https://api.github.com/repos/zed-industries/zed/releases/latest)
           BODY=$(echo "$RELEASE_DATA" | jq -r '.body')
-          echo "RELEASE_BODY<<EOF" >> $GITHUB_OUTPUT
-          echo "$BODY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Check if release exists
-        id: check_release
-        run: |
-          RELEASE_EXISTS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ env.LATEST_TAG }}")
-          if [ "$RELEASE_EXISTS" = "200" ]; then
-            echo "RELEASE_EXISTS=true" >> $GITHUB_OUTPUT
-          else
-            echo "RELEASE_EXISTS=false" >> $GITHUB_OUTPUT
-          fi
-
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+          echo "$BODY" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
       - name: Create Release
         id: create_release
-        if: steps.check_release.outputs.RELEASE_EXISTS == 'false'
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          release_name: ${{ steps.get_latest_tag.outputs.LATEST_TAG }}
-          tag_name: ${{ steps.get_latest_tag.outputs.LATEST_TAG }}
-          body: ${{ steps.fetch_body.outputs.RELEASE_BODY }}
+          tag_name: ${{ env.LATEST_TAG }}
+          release_name: ${{ env.LATEST_TAG }}
+          body: ${{ env.RELEASE_BODY }}
           draft: false
-          prerelease: ${{ steps.get_latest_tag.outputs.IS_PRERELEASE }}
-
-      - name: Update existing release
-        if: steps.check_release.outputs.RELEASE_EXISTS == 'true'
-        run: |
-          curl -X PATCH \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ env.LATEST_TAG }}" \
-            -d '{
-              "tag_name": "${{ env.LATEST_TAG }}",
-              "name": "${{ env.LATEST_TAG }}",
-              "body": ${{ toJson(steps.fetch_body.outputs.RELEASE_BODY) }},
-              "draft": false,
-              "prerelease": ${{ env.IS_PRERELEASE }}
-            }'
-
-      - name: Get Release ID
-        id: get_release_id
-        run: |
-          RELEASE_ID=$(curl -s \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ env.LATEST_TAG }}" \
-            | jq -r .id)
-          echo "RELEASE_ID=$RELEASE_ID" >> $GITHUB_OUTPUT
+          prerelease: ${{ env.IS_PRERELEASE }}
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
@@ -218,6 +167,7 @@ jobs:
           asset_path: ./target/release/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
           asset_name: Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
           asset_content_type: application/octet-stream
+
 
       - uses: actions/checkout@v4
         with:
