@@ -256,8 +256,11 @@ jobs:
           "@
           
           $appInstallerFileName = "Zed-windows-amd64-$env:LATEST_TAG.appinstaller"
-          $appInstallerContent | Out-File -FilePath $appInstallerFileName -Encoding utf8
+          $appInstallerContent | Out-File -FilePath $appInstallerFileName -Encoding utf8NoBOM
           Write-Host "Created $appInstallerFileName file"
+          
+          # Verify the content of the .appinstaller file
+          Get-Content $appInstallerFileName
 
       - name: List directory contents
         working-directory: ./zed
