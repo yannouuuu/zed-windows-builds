@@ -10,6 +10,18 @@ permissions:
   contents: write
 
 jobs:
+  set-version:
+    runs-on: ubuntu-latest
+    outputs:
+      latest_tag: ${{ steps.get_latest_tag.outputs.LATEST_TAG }}
+    steps:
+      - name: Get latest release tag (including pre-releases)
+        id: get_latest_tag
+        run: |
+          LATEST_TAG=$(curl -s "https://api.github.com/repos/zed-industries/zed/releases" | jq -r 'first | .tag_name')
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+          echo "Latest tag found (including pre-releases): $LATEST_TAG"
+
   build-windows-amd64:
     runs-on: windows-latest
     steps:
@@ -98,8 +110,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: Zed-*
-          merge-multiple: true
+          name: Zed-windows-amd64-${{ needs.build-windows-amd64.outputs.LATEST_TAG }}
           path: target/release
 
       - name: Verify downloaded artifacts
@@ -204,8 +215,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./target/release/Zed-windows-amd64-${{ steps.get_latest_tag.outputs.LATEST_TAG }}.exe
-          asset_name: Zed-windows-amd64-${{ steps.get_latest_tag.outputs.LATEST_TAG }}.exe
+          asset_path: ./target/release/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+          asset_name: Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
           asset_content_type: application/octet-stream
 
       - uses: actions/checkout@v4
