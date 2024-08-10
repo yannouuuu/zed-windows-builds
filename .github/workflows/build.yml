@@ -293,7 +293,7 @@ jobs:
             Write-Host "Error: AppxManifest.xml not found"
             exit 1
           }
-          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" pack /d . /p Zed-windows-amd64-${{ env.LATEST_TAG }}.msix /f AppxManifest.xml
+          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" pack /d . /p Zed-windows-amd64-${{ env.LATEST_TAG }}.msix
           if ($LASTEXITCODE -ne 0) {
             Write-Host "Error: MakeAppx failed with exit code $LASTEXITCODE"
             exit 1
