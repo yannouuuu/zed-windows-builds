@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - main
-      - msix
+      - msixc
   release:
     types: [released, published, prereleased]
 
@@ -268,10 +268,36 @@ jobs:
         run: |
           choco install windows-sdk-10-version-2004-all
 
+      - name: Prepare MSIX manifest
+        run: |
+          cd zed
+          Copy-Item AppxManifest.zed.xml AppxManifest.xml
+          $version = $env:LATEST_TAG -replace '^v', ''
+          $versionParts = $version -split '-'
+          $mainVersion = $versionParts[0]
+          
+          # Ensure we have four parts to the version number
+          $versionNumbers = $mainVersion -split '\.'
+          if ($versionNumbers.Length -lt 4) {
+            $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
+          }
+          
+          $content = Get-Content AppxManifest.xml -Raw
+          $content = $content.Replace('__VERSION__', $mainVersion).Replace('__LATEST_TAG__', $env:LATEST_TAG)
+          Set-Content AppxManifest.xml -Value $content -NoNewline
+
       - name: Create MSIX package
         run: |
           cd zed
-          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" pack /d . /p Zed-windows-amd64-${{ env.LATEST_TAG }}.msix /f AppxManifest.zed.xml
+          if (-not (Test-Path "AppxManifest.xml")) {
+            Write-Host "Error: AppxManifest.xml not found"
+            exit 1
+          }
+          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" pack /d . /p Zed-windows-amd64-${{ env.LATEST_TAG }}.msix /f AppxManifest.xml
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Error: MakeAppx failed with exit code $LASTEXITCODE"
+            exit 1
+          }
           Write-Host "MSIX package created successfully"
 
       - name: Sign MSIX package
