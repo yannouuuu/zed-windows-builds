@@ -6,6 +6,8 @@ on:
     branches:
       - main
       - msix-build
+  release:
+    types: [released, published, prereleased]
 
 permissions:
   contents: write
@@ -262,6 +264,22 @@ jobs:
           # Verify the content of the .appinstaller file
           Get-Content $appInstallerFileName
 
+      - name: Install Windows SDK
+        run: |
+          choco install windows-sdk-10-version-2004-all
+
+      - name: Create MSIX package
+        run: |
+          cd zed
+          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" pack /d . /p Zed-windows-amd64-${{ env.LATEST_TAG }}.msix /f AppxManifest.zed.xml
+          Write-Host "MSIX package created successfully"
+
+      - name: Sign MSIX package
+        run: |
+          cd zed
+          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\SignTool.exe" sign /fd SHA256 /a /f ../build-repo/cert/ZedCertificate.pfx /p ${{ secrets.CERTIFICATE_PASSWORD }} Zed-windows-amd64-${{ env.LATEST_TAG }}.msix
+          Write-Host "MSIX package signed successfully"
+
       - name: List directory contents
         working-directory: ./zed
         run: |
@@ -273,15 +291,17 @@ jobs:
       - name: Prepare and copy artifacts
         run: |
           $sourceExe = "zed\target\release\Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
+          $sourceMsix = "zed\Zed-windows-amd64-${{ env.LATEST_TAG }}.msix"
           $appInstaller = "zed\Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller"
 
           # Copy artifacts to root
-          if (Test-Path $sourceExe) {
+          if (Test-Path $sourceExe -and Test-Path $sourceMsix) {
             Copy-Item $sourceExe .
+            Copy-Item $sourceMsix .
             Copy-Item $appInstaller .
             Write-Host "Copied artifacts to root directory"
           } else {
-            Write-Host "Error: Tagged Zed executable not found at $sourceExe"
+            Write-Host "Error: Source files not found"
             exit 1
           }
 
@@ -291,6 +311,7 @@ jobs:
           name: Zed-windows-amd64-${{ env.LATEST_TAG }}
           path: |
             Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.msix
             Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
 
       - name: Debug - List uploaded artifacts
@@ -356,6 +377,7 @@ jobs:
           prerelease: false
           files: |
             Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.msix
             Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -371,6 +393,7 @@ jobs:
           prerelease: false
           files: |
             Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.msix
             Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
