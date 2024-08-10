@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - msix-build
 
 permissions:
   contents: write
@@ -19,21 +20,52 @@ jobs:
         id: get_latest_tag
         run: |
           LATEST_TAG=$(curl -s "https://api.github.com/repos/zed-industries/zed/releases" | jq -r 'first | .tag_name')
-          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "Latest tag found (including pre-releases): $LATEST_TAG"
 
+      - name: Debug - Print LATEST_TAG
+        run: |
+          echo "LATEST_TAG value: ${{ steps.get_latest_tag.outputs.LATEST_TAG }}"
+          if [ -z "${{ steps.get_latest_tag.outputs.LATEST_TAG }}" ]; then
+            echo "Error: LATEST_TAG is empty or null"
+            exit 1
+          fi
+
+      - name: Debug - Print API response
+        run: |
+          API_RESPONSE=$(curl -s "https://api.github.com/repos/zed-industries/zed/releases")
+          echo "API Response: $API_RESPONSE"
+
   build-windows-amd64:
+    needs: set-version
     runs-on: windows-latest
+    env:
+      LATEST_TAG: ${{ needs.set-version.outputs.latest_tag }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Zed repository
+        uses: actions/checkout@v4
         with:
           repository: zed-industries/zed
-      - uses: dtolnay/rust-toolchain@stable
+          path: zed
+
+      - name: Checkout Yannou's build repository
+        uses: actions/checkout@v4
+        with:
+          repository: yannouuuu/zed-windows-build
+          path: build-repo
+          fetch-depth: 0
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
       - run: rustup target add wasm32-wasi
-      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: amd64
-      - uses: actions/cache@v3
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/bin/
@@ -41,31 +73,48 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
+            zed/target/
             C:/Users/runneradmin/.cargo/registry/
-            C:/Users/runneradmin/.cargo/git/
+            C:/Users/runneradmin/.cargo/git/  
             C:/Users/runneradmin/.rustup/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-      # Clean up old build artifacts
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-directories: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+            C:/Users/runneradmin/.cargo/registry/
+            C:/Users/runneradmin/.cargo/git/  
+            C:/Users/runneradmin/.rustup/
+          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Debug - List directory structure
+        run: |
+          Write-Host "Current directory:"
+          Get-Location
+          Write-Host "Directory structure:"
+          Get-ChildItem -Recurse -Depth 3 | Select-Object FullName
+
       - name: Clean up old build artifacts
         run: |
           $releasePath = "zed/target/release"
           if (Test-Path $releasePath) {
-            # Clean up .exe files
-            Get-ChildItem -Path $releasePath -Filter "Zed*.exe" | 
-            Where-Object { $_.Name -ne "Zed-windows-amd64-$env:LATEST_TAG.exe" -and $_.Name -ne "Zed.exe" } | 
-            ForEach-Object { 
-              Remove-Item $_.FullName -Force
-              Write-Host "Removed old artifact: $($_.Name)"
-            }
-            if (Test-Path "$releasePath/Zed.exe") {
-              Remove-Item "$releasePath/Zed.exe" -Force
-              Write-Host "Removed Zed.exe"
-            }
-            if (Test-Path "$releasePath/Zed-windows-amd64-$env:LATEST_TAG.exe") {
-              Remove-Item "$releasePath/Zed-windows-amd64-$env:LATEST_TAG.exe" -Force
-              Write-Host "Removed Zed-windows-amd64-$env:LATEST_TAG.exe"
+            # Define file extensions to remove
+            $extensionsToRemove = @("*.exe", "*.msix", "*.msixbundle", "*.appinstaller")
+
+            # Remove files with specified extensions
+            foreach ($extension in $extensionsToRemove) {
+              Get-ChildItem -Path $releasePath -Filter $extension | ForEach-Object {
+                Remove-Item $_.FullName -Force
+                Write-Host "Removed file: $($_.Name)"
+              }
             }
 
             # List remaining contents of the release directory
@@ -75,36 +124,34 @@ jobs:
             }
           } else {
             Write-Host "Release directory does not exist yet: ${releasePath}"
-          }y
-      # Build Zed
-      - run: cargo build --release -j 4
-      - run: copy target/release/Zed.exe target/release/Zed-windows-amd64.exe
-      - run: |
-          if (Test-Path -Path 'target/release/Zed-windows-amd64.exe') {
-            echo "Build successful, file exists."
           }
-          else {
-            echo "Build failed, file does not exist."
+
+      - name: Build Zed
+        run: |
+          cd zed
+          cargo build --release -j 4
+
+      - name: Verify Zed build
+        run: |
+          if (Test-Path "zed/target/release/Zed.exe") {
+            Write-Host "Zed.exe built successfully"
+          } else {
+            Write-Host "Zed.exe not found after build"
             exit 1
           }
-      # Get latest release tag from GitHub API + fallback to v0.0.0 if no tag is found
-      - name: Get latest release tag from GitHub API
-        id: get_latest_tag
+
+      - name: Debug - Print LATEST_TAG
         run: |
-          $latestRelease = (Invoke-RestMethod -Uri https://api.github.com/repos/zed-industries/zed/releases/)
-          $latestTag = $latestRelease.tag_name
-          $isPrerelease = $latestRelease.prerelease.ToString().ToLower()
-          if (-not $latestTag) {
-            $latestTag = "v0.0.0"
-            $isPrerelease = "false"
+          Write-Host "LATEST_TAG value: $env:LATEST_TAG"
+          if ([string]::IsNullOrEmpty($env:LATEST_TAG)) {
+            Write-Host "Error: LATEST_TAG is empty or null"
+            exit 1
           }
-          echo "LATEST_TAG=$latestTag" >> $env:GITHUB_ENV
-          echo "IS_PRERELEASE=$isPrerelease" >> $env:GITHUB_ENV
-          echo "Latest tag: $latestTag, Is Pre-release: $isPrerelease"
+
       - name: Rename build output
         run: |
-          $sourceDir = "target\release"
-          $sourceName = "Zed-windows-amd64.exe"
+          $sourceDir = "zed/target/release"
+          $sourceName = "Zed.exe"
           $newFileName = "Zed-windows-amd64-$env:LATEST_TAG.exe"
           $sourcePath = Join-Path -Path $sourceDir -ChildPath $sourceName
           $destinationPath = Join-Path -Path $sourceDir -ChildPath $newFileName
@@ -115,97 +162,228 @@ jobs:
             Write-Host "Error: Source file $sourcePath not found"
             exit 1
           }
-      - uses: actions/upload-artifact@v4
+
+      - name: Prepare App Installer package
+        run: |
+          cd zed
+          Copy-Item ../build-repo/AppxManifest.zed.xml .
+          
+          # Check if the assets folder exists
+          if (-not (Test-Path "assets")) {
+            Write-Host "Error: assets folder not found"
+            exit 1
+          }
+          
+          # Check for necessary icons
+          $requiredAssets = @(
+            "Square44x44Logo.png",
+            "Square150x150Logo.png",
+            "LargeTile.png",
+            "SmallTile.png",
+            "StoreLogo.png"
+          )
+          
+          foreach ($asset in $requiredAssets) {
+            $assetPath = "assets/$asset"
+            if (Test-Path $assetPath) {
+              Write-Host "$asset exists in assets folder"
+            } else {
+              Write-Host "Warning: $asset not found in assets folder. Creating an empty image."
+              magick convert -size 44x44 xc:transparent $assetPath
+            }
+          }
+
+          # Display the contents of the assets folder
+          Write-Host "Contents of assets folder:"
+          Get-ChildItem -Path "assets" | ForEach-Object { Write-Host "  $($_.Name)" }
+
+      - name: Debug - List zed directory contents
+        run: |
+          cd zed
+          Write-Host "Current directory:"
+            Get-Location
+            Write-Host "Directory contents:"
+            Get-ChildItem -Force | Select-Object Name, LastWriteTime, Length
+
+      - name: Update AppxManifest with correct version and tag
+        run: |
+          cd zed
+          $version = $env:LATEST_TAG -replace '^v', ''
+          $versionParts = $version -split '-'
+          $mainVersion = $versionParts[0]
+          
+          # Ensure we have four parts to the version number
+          $versionNumbers = $mainVersion -split '\.'
+          if ($versionNumbers.Length -lt 4) {
+            $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
+          }
+          
+          $content = Get-Content AppxManifest.zed.xml -Raw
+          $content = $content.Replace('__VERSION__', $mainVersion).Replace('__LATEST_TAG__', $env:LATEST_TAG)
+          Set-Content AppxManifest.zed.xml -Value $content -NoNewline
+
+      - name: Prepare App Installer manifest
+        run: |
+          cd zed
+          $version = $env:LATEST_TAG -replace '^v', ''
+          $versionParts = $version -split '-'
+          $mainVersion = $versionParts[0]
+          
+          # Ensure we have four parts to the version number
+          $versionNumbers = $mainVersion -split '\.'
+          if ($versionNumbers.Length -lt 4) {
+            $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
+          }
+          
+          $appInstallerContent = @"
+          <?xml version="1.0" encoding="utf-8"?>
+          <AppInstaller
+            xmlns="http://schemas.microsoft.com/appx/appinstaller/2018"
+            Version="$mainVersion"
+            Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller">
+            
+            <MainPackage
+              Name="Zed"
+              Version="$mainVersion"
+              Publisher="CN=ZedIndustries"
+              Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
+              ProcessorArchitecture="x64" />
+            
+            <UpdateSettings>
+              <OnLaunch HoursBetweenUpdateChecks="0" />
+            </UpdateSettings>
+          </AppInstaller>
+          "@
+          
+          $appInstallerFileName = "Zed-windows-amd64-$env:LATEST_TAG.appinstaller"
+          $appInstallerContent | Out-File -FilePath $appInstallerFileName -Encoding utf8NoBOM
+          Write-Host "Created $appInstallerFileName file"
+          
+          # Verify the content of the .appinstaller file
+          Get-Content $appInstallerFileName
+
+      - name: List directory contents
+        working-directory: ./zed
+        run: |
+          Write-Host "Current directory:"
+          Get-Location
+          Write-Host "Directory contents:"
+          Get-ChildItem -Recurse | Select-Object FullName, Length, CreationTime, LastWriteTime
+
+      - name: Prepare and copy artifacts
+        run: |
+          $sourceExe = "zed\target\release\Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
+          $appInstaller = "zed\Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller"
+
+          # Copy artifacts to root
+          if (Test-Path $sourceExe) {
+            Copy-Item $sourceExe .
+            Copy-Item $appInstaller .
+            Write-Host "Copied artifacts to root directory"
+          } else {
+            Write-Host "Error: Tagged Zed executable not found at $sourceExe"
+            exit 1
+          }
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: Zed-windows-amd64-${{ env.LATEST_TAG }}
-          path: target/release/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+          path: |
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
+
+      - name: Debug - List uploaded artifacts
+        run: |
+          echo "Uploaded artifact name: Zed-windows-amd64-${{ env.LATEST_TAG }}"
+          echo "LATEST_TAG value: ${{ env.LATEST_TAG }}"
+
+      - name: Debug - List zed directory contents
+        run: |
+          cd zed
+          Write-Host "Current directory:"
+          Get-Location
+          Write-Host "Directory contents:"
+          Get-ChildItem -Force | Select-Object Name, LastWriteTime, Length
 
   upload-to-release:
+    needs: [set-version, build-windows-amd64]
     runs-on: ubuntu-latest
-    needs: [build-windows-amd64]
+    env:
+      LATEST_TAG: ${{ needs.set-version.outputs.latest_tag }}
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Debug - Print LATEST_TAG
+        run: | 
+          echo "LATEST_TAG value: ${{ env.LATEST_TAG }}"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
         with:
-          pattern: Zed-*
-          merge-multiple: true
-          path: target/release
-          
-      - name: Verify downloaded artifacts
+          name: Zed-windows-amd64-${{ env.LATEST_TAG }}
+
+      - name: Debug - List downloaded files
+        run: ls -R
+
+      - name: Get latest release info
+        id: get_release_info
         run: |
-          echo "Contents of current directory:"
-          ls -R
-          echo "Contents of target/release directory:"
-          ls -l target/release || echo "target/release directory does not exist"
-      - name: Verify environment variables and files
-        run: |
-          echo "LATEST_TAG=$LATEST_TAG"
-          echo "Current directory:"
-          pwd
-          echo "Contents of current directory:"
-          ls -R
-          echo "Contents of target/release directory:"
-          ls -l target/release || echo "target/release directory does not exist"
-          echo "Searching for Zed-windows-amd64 files:"
-          find . -name "Zed-windows-amd64*"
-      - name: Get current date
-        id: get_date
-        run: |
-          echo "DATE=$(date +'%m-%d-%Y')" >> $GITHUB_ENV
-      - name: Get latest release tag
-        id: get_latest_tag
-        run: |
-          LATEST_RELEASE=$(curl -s https://api.github.com/repos/zed-industries/zed/releases/)
-          LATEST_TAG=$(echo $LATEST_RELEASE | jq -r '.tag_name')
-          IS_PRERELEASE=$(echo $LATEST_RELEASE | jq -r '.prerelease')
-          if [ -z "$LATEST_TAG" ]; then
-            LATEST_TAG="v0.0.0"
-            IS_PRERELEASE=false
-          fi
-          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
-          echo "IS_PRERELEASE=$IS_PRERELEASE" >> $GITHUB_ENV
-          echo "Latest tag: $LATEST_TAG, Is Pre-release: $IS_PRERELEASE"
-      - name: Fetch release body from GitHub API
-        id: fetch_body
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          RELEASE_DATA=$(curl -s \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            https://api.github.com/repos/zed-industries/zed/releases/)
-          BODY=$(echo "$RELEASE_DATA" | jq -r '.body')
+          RELEASE_INFO=$(curl -s "https://api.github.com/repos/zed-industries/zed/releases/tags/${{ env.LATEST_TAG }}")
+          RELEASE_BODY=$(echo "$RELEASE_INFO" | jq -r '.body // "No release notes available."')
           echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
-          echo "$BODY" >> $GITHUB_ENV
+          echo "$RELEASE_BODY" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check existing release
+        id: check_release
+        run: |
+          RELEASE_EXISTS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ env.LATEST_TAG }}")
+          echo "RELEASE_EXISTS=$([[ $RELEASE_EXISTS == "200" ]] && echo "true" || echo "false")" >> $GITHUB_ENV
+
+      - name: Debug - Print LATEST_TAG
+        run: | 
+          echo "LATEST_TAG value: ${{ needs.set-version.outputs.latest_tag }}"
+          
+      - name: Create or update release
+        uses: softprops/action-gh-release@v1
+        if: env.RELEASE_EXISTS == 'false'
         with:
           tag_name: ${{ env.LATEST_TAG }}
-          release_name: ${{ env.LATEST_TAG }}
+          name: ${{ env.LATEST_TAG }}
           body: ${{ env.RELEASE_BODY }}
           draft: false
-          prerelease: ${{ env.IS_PRERELEASE }}
-
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+          prerelease: false
+          files: |
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update existing release
+        uses: softprops/action-gh-release@v1
+        if: env.RELEASE_EXISTS == 'true'
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./target/release/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
-          asset_name: Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
-          asset_content_type: application/octet-stream
+          tag_name: ${{ env.LATEST_TAG }}
+          name: ${{ env.LATEST_TAG }}
+          body: ${{ env.RELEASE_BODY }}
+          draft: false
+          prerelease: false
+          files: |
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-
-      - uses: actions/checkout@v4
+      - name: Checkout build repository
+        uses: actions/checkout@v4
         with:
           repository: yannouuuu/zed-windows-build
           fetch-depth: 0
 
-      - uses: stefanzweifel/git-auto-commit-action@v5
+      - name: Commit version update
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
           branch: update
           file_pattern: build.md *-update.json
-          commit_message: Bump version ${{ env.NEXT_VER_CODE }}
+          commit_message: Bump version ${{ env.LATEST_TAG }}
