@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - main
-      - msix-build
+      - msix
   release:
     types: [released, published, prereleased]
 
