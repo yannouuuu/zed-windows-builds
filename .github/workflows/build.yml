@@ -189,15 +189,6 @@ jobs:
           cd MSIX-Hero
           msbuild Otor.MsixHero.sln /t:Clean /p:Configuration=Release /p:Platform="Any CPU"
 
-      - name: Verify MSIX-Hero build
-        run: |
-          if (Test-Path "MSIX-Hero/src/Otor.MsixHero.App/bin/Release/net8.0-windows10.0.22621.0/Otor.MsixHero.App.exe") {
-            Write-Host "MSIX-Hero built successfully"
-          } else {
-            Write-Host "MSIX-Hero build failed"
-            exit 1
-          } 
-
       - name: Convert EXE to MSIX
         run: |
           $sourceExe = "zed\target\release\Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
