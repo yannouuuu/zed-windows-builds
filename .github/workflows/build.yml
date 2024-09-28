@@ -176,19 +176,18 @@ jobs:
           cd MSIX-Hero
           git checkout master  # or specify a particular branch/tag if needed
 
-      - name: Clean NuGet cache
-        run: dotnet nuget locals all --clear
+  # - name: Clean NuGet cache
+  #   run: dotnet nuget locals all --clear
 
-      - name: Restore NuGet packages
-        run: |
-          cd MSIX-Hero
-          dotnet restore --force
+  # - name: Restore NuGet packages
+  #   run: |
+  #     cd MSIX-Hero
+  #     dotnet restore --force
 
       - name: Build MSIX-Hero
         run: |
           cd MSIX-Hero
           msbuild Otor.MsixHero.sln /t:Clean /p:Configuration=Debug /p:Platform="x64"
-
 
       - name: Convert EXE to MSIX
         run: |
