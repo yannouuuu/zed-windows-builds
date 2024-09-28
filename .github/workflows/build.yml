@@ -187,7 +187,8 @@ jobs:
       - name: Build MSIX-Hero
         run: |
           cd MSIX-Hero
-          msbuild Otor.MsixHero.sln /t:Clean /p:Configuration=Release /p:Platform="Any CPU"
+          msbuild Otor.MsixHero.sln /t:Clean /p:Configuration=Debug /p:Platform="x64"
+
 
       - name: Convert EXE to MSIX
         run: |
