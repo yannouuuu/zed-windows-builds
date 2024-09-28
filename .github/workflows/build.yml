@@ -179,6 +179,11 @@ jobs:
       - name: Clean NuGet cache
         run: dotnet nuget locals all --clear
 
+      - name: Restore NuGet packages
+        run: |
+          cd MSIX-Hero
+          dotnet restore
+
       - name: Build MSIX-Hero
         run: |
           cd MSIX-Hero
