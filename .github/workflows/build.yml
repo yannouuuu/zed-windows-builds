@@ -169,7 +169,7 @@ jobs:
         run: |
           git clone https://github.com/marcinotorowski/MSIX-Hero.git
           cd MSIX-Hero
-          dotnet build
+          msbuild Otor.MsixHero.sln /p:Configuration=Release /p:Platform="Any CPU"
 
       - name: Convert EXE to MSIX
         run: |
