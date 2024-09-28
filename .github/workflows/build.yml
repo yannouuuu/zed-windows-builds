@@ -165,39 +165,26 @@ jobs:
             exit 1
           }
 
-      - name: Prepare App Installer package
+      - name: Clone MSIX-Hero repository
         run: |
-          cd zed
-          Copy-Item ../build-repo/AppxManifest.zed.xml .
-          
-          # Check if the assets folder exists
-          if (-not (Test-Path "assets")) {
-            Write-Host "Error: assets folder not found"
-            exit 1
-          }
-          
-          # Check for necessary icons
-          $requiredAssets = @(
-            "Square44x44Logo.png",
-            "Square150x150Logo.png",
-            "LargeTile.png",
-            "SmallTile.png",
-            "StoreLogo.png"
-          )
-          
-          foreach ($asset in $requiredAssets) {
-            $assetPath = "assets/$asset"
-            if (Test-Path $assetPath) {
-              Write-Host "$asset exists in assets folder"
-            } else {
-              Write-Host "Warning: $asset not found in assets folder. Creating an empty image."
-              magick convert -size 44x44 xc:transparent $assetPath
-            }
-          }
+          git clone https://github.com/marcinotorowski/MSIX-Hero.git
+          cd MSIX-Hero
+          dotnet build
 
-          # Display the contents of the assets folder
-          Write-Host "Contents of assets folder:"
-          Get-ChildItem -Path "assets" | ForEach-Object { Write-Host "  $($_.Name)" }
+      - name: Convert EXE to MSIX
+        run: |
+          $sourceExe = "zed\target\release\Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
+          $outputMsix = "zed\Zed-windows-amd64-${{ env.LATEST_TAG }}.msix"
+          cd MSIX-Hero/MSIX-Hero.Cli/bin/Debug/netcoreapp3.1
+          ./MSIX-Hero.Cli.exe create -i $sourceExe -o $outputMsix
+
+      - name: Sign MSIX package
+        run: |
+          $certPath = "cert/ZedCertificate.pfx"
+          $certPassword = "${{ secrets.CERTIFICATE_PASSWORD }}" 
+          $msixPath = "zed\Zed-windows-amd64-${{ env.LATEST_TAG }}.msix"
+          cd MSIX-Hero/MSIX-Hero.Cli/bin/Debug/netcoreapp3.1
+          ./MSIX-Hero.Cli.exe sign -i $msixPath -c $certPath -p $certPassword
 
       - name: Debug - List zed directory contents
         run: |
@@ -207,104 +194,9 @@ jobs:
             Write-Host "Directory contents:"
             Get-ChildItem -Force | Select-Object Name, LastWriteTime, Length
 
-      - name: Update AppxManifest with correct version and tag
-        run: |
-          cd zed
-          $version = $env:LATEST_TAG -replace '^v', ''
-          $versionParts = $version -split '-'
-          $mainVersion = $versionParts[0]
-          
-          # Ensure we have four parts to the version number
-          $versionNumbers = $mainVersion -split '\.'
-          if ($versionNumbers.Length -lt 4) {
-            $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
-          }
-          
-          $content = Get-Content AppxManifest.zed.xml -Raw
-          $content = $content.Replace('__VERSION__', $mainVersion).Replace('__LATEST_TAG__', $env:LATEST_TAG)
-          Set-Content AppxManifest.zed.xml -Value $content -NoNewline
-
-      - name: Prepare App Installer manifest
-        run: |
-          cd zed
-          $version = $env:LATEST_TAG -replace '^v', ''
-          $versionParts = $version -split '-'
-          $mainVersion = $versionParts[0]
-          
-          # Ensure we have four parts to the version number
-          $versionNumbers = $mainVersion -split '\.'
-          if ($versionNumbers.Length -lt 4) {
-            $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
-          }
-          
-          $appInstallerContent = @"
-          <?xml version="1.0" encoding="utf-8"?>
-          <AppInstaller
-            xmlns="http://schemas.microsoft.com/appx/appinstaller/2018"
-            Version="$mainVersion"
-            Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller">
-            
-            <MainPackage
-              Name="Zed"
-              Version="$mainVersion"
-              Publisher="CN=ZedIndustries"
-              Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
-              ProcessorArchitecture="x64" />
-            
-            <UpdateSettings>
-              <OnLaunch HoursBetweenUpdateChecks="0" />
-            </UpdateSettings>
-          </AppInstaller>
-          "@
-          
-          $appInstallerFileName = "Zed-windows-amd64-$env:LATEST_TAG.appinstaller"
-          $appInstallerContent | Out-File -FilePath $appInstallerFileName -Encoding utf8NoBOM
-          Write-Host "Created $appInstallerFileName file"
-          
-          # Verify the content of the .appinstaller file
-          Get-Content $appInstallerFileName
-
       - name: Install Windows SDK
         run: |
           choco install windows-sdk-10-version-2004-all
-
-      - name: Prepare MSIX manifest
-        run: |
-          cd zed
-          Copy-Item AppxManifest.zed.xml AppxManifest.xml
-          $version = $env:LATEST_TAG -replace '^v', ''
-          $versionParts = $version -split '-'
-          $mainVersion = $versionParts[0]
-          
-          # Ensure we have four parts to the version number
-          $versionNumbers = $mainVersion -split '\.'
-          if ($versionNumbers.Length -lt 4) {
-            $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
-          }
-          
-          $content = Get-Content AppxManifest.xml -Raw
-          $content = $content.Replace('__VERSION__', $mainVersion).Replace('__LATEST_TAG__', $env:LATEST_TAG)
-          Set-Content AppxManifest.xml -Value $content -NoNewline
-
-      - name: Create MSIX package
-        run: |
-          cd zed
-          if (-not (Test-Path "AppxManifest.xml")) {
-            Write-Host "Error: AppxManifest.xml not found"
-            exit 1
-          }
-          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" pack /d . /p Zed-windows-amd64-${{ env.LATEST_TAG }}.msix
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "Error: MakeAppx failed with exit code $LASTEXITCODE"
-            exit 1
-          }
-          Write-Host "MSIX package created successfully"
-
-      - name: Sign MSIX package
-        run: |
-          cd zed
-          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\SignTool.exe" sign /fd SHA256 /a /f ../build-repo/cert/ZedCertificate.pfx /p ${{ secrets.CERTIFICATE_PASSWORD }} Zed-windows-amd64-${{ env.LATEST_TAG }}.msix
-          Write-Host "MSIX package signed successfully"
 
       - name: List directory contents
         working-directory: ./zed
@@ -318,7 +210,6 @@ jobs:
         run: |
           $sourceExe = "zed\target\release\Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
           $sourceMsix = "zed\Zed-windows-amd64-${{ env.LATEST_TAG }}.msix"
-          $appInstaller = "zed\Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller"
 
           # Copy artifacts to root
           if (Test-Path $sourceExe -and Test-Path $sourceMsix) {
@@ -338,7 +229,6 @@ jobs:
           path: |
             Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
             Zed-windows-amd64-${{ env.LATEST_TAG }}.msix
-            Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
 
       - name: Debug - List uploaded artifacts
         run: |
@@ -420,7 +310,6 @@ jobs:
           files: |
             Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
             Zed-windows-amd64-${{ env.LATEST_TAG }}.msix
-            Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
