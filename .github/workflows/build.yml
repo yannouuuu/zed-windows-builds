@@ -165,11 +165,38 @@ jobs:
             exit 1
           }
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '8.0.x'  # Adjust this version as needed for MSIX-Hero
+       
       - name: Clone MSIX-Hero repository
         run: |
           git clone https://github.com/marcinotorowski/MSIX-Hero.git
           cd MSIX-Hero
+          git checkout master  # or specify a particular branch/tag if needed
+
+      - name: Clean NuGet cache
+        run: dotnet nuget locals all --clear
+
+      - name: Restore NuGet packages
+        run: |
+          cd MSIX-Hero
+          dotnet restore
+
+      - name: Build MSIX-Hero
+        run: |
+          cd MSIX-Hero
           msbuild Otor.MsixHero.sln /p:Configuration=Release /p:Platform="Any CPU"
+          
+      - name: Verify MSIX-Hero build
+        run: |
+          if (Test-Path "MSIX-Hero/src/Otor.MsixHero.App/bin/Release/net8.0-windows10.0.22621.0/Otor.MsixHero.App.exe") {
+            Write-Host "MSIX-Hero built successfully"
+          } else {
+            Write-Host "MSIX-Hero build failed"
+            exit 1
+          } 
 
       - name: Convert EXE to MSIX
         run: |
