@@ -182,7 +182,7 @@ jobs:
       - name: Restore NuGet packages
         run: |
           cd MSIX-Hero
-          dotnet restore
+          dotnet restore --force
 
       - name: Build MSIX-Hero
         run: |
