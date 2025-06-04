@@ -57,7 +57,7 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-      - run: rustup target add wasm32-wasi
+      - run: rustup target add wasm32-wasip1
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
@@ -369,7 +369,6 @@ jobs:
           prerelease: false
           files: |
             Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
-            Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
