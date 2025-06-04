@@ -2,14 +2,13 @@
 
 ## Project Overview
 
-This repository houses an automated CI/CD pipeline for compiling and distributing Zed, a cutting-edge text editor, for the Windows platform. Leveraging GitHub Actions, it orchestrates the build process for Windows, generating both a standalone executable (.exe) and a Windows app package (.msix) for seamless deployment.
+This repository houses an automated CI/CD pipeline for compiling and distributing Zed, a cutting-edge text editor, for the Windows platform. Leveraging GitHub Actions, it orchestrates the build process for Windows, generating a standalone executable (.exe) for seamless deployment.
 
 > **Disclaimer: This project is not affiliated with Zed Industries. It is an independent, community-driven endeavor.**
 
 ## Core Functionalities
 
 - Automated cross-compilation of Zed for Windows (x86_64 architecture)
-- MSIX package generation for streamlined Windows 10/11 installation
 - Automated pruning of obsolete build artifacts
 - Version management based on Zed's official release tags
 - Artifact uploading to GitHub releases
@@ -28,24 +27,12 @@ While these measures ensure a high degree of safety, it's advisable to employ up
 ## Usage Instructions
 
 1. Navigate to the "Releases" section of this GitHub repository.
-2. Locate and download the latest Zed build for Windows (either .exe or .msix).
+2. Locate and download the latest Zed build for Windows (.exe).
 3. For .exe: Execute the file directly.
-4. For .msix: Initiate installation by double-clicking, leveraging the Windows app installer.
 
 ## Technical Deep Dive
 
 Some segments of the build process involve intricate operations. Here's an in-depth look at key components:
-
-### MSIX Package Creation
-
-```powershell
-& "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" pack /d . /p Zed-windows-amd64-${{ env.LATEST_TAG }}.msix /f AppxManifest.xml
-```
-
-This command invokes `MakeAppx.exe` from the Windows SDK to generate the MSIX package:
-- `/d .`: Specifies the current directory as the source for package contents.
-- `/p`: Designates the output package name, incorporating the latest version tag.
-- `/f AppxManifest.xml`: Points to the manifest file defining the package structure and metadata.
 
 ## Artifact Versioning
 
