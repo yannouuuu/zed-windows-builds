@@ -163,39 +163,39 @@ jobs:
             exit 1
           }
 
-      - name: Prepare App Installer package
-        run: |
-          cd zed
-          Copy-Item ../build-repo/AppxManifest.zed.xml .
-          
-          # Check if the assets folder exists
-          if (-not (Test-Path "assets")) {
-            Write-Host "Error: assets folder not found"
-            exit 1
-          }
-          
-          # Check for necessary icons
-          $requiredAssets = @(
-            "Square44x44Logo.png",
-            "Square150x150Logo.png",
-            "LargeTile.png",
-            "SmallTile.png",
-            "StoreLogo.png"
-          )
-          
-          foreach ($asset in $requiredAssets) {
-            $assetPath = "assets/$asset"
-            if (Test-Path $assetPath) {
-              Write-Host "$asset exists in assets folder"
-            } else {
-              Write-Host "Warning: $asset not found in assets folder. Creating an empty image."
-              magick convert -size 44x44 xc:transparent $assetPath
-            }
-          }
-
-          # Display the contents of the assets folder
-          Write-Host "Contents of assets folder:"
-          Get-ChildItem -Path "assets" | ForEach-Object { Write-Host "  $($_.Name)" }
+#      - name: Prepare App Installer package
+#        run: |
+#          cd zed
+#          Copy-Item ../build-repo/AppxManifest.zed.xml .
+#
+#          # Check if the assets folder exists
+#          if (-not (Test-Path "assets")) {
+#            Write-Host "Error: assets folder not found"
+#            exit 1
+#          }
+#
+#          # Check for necessary icons
+#          $requiredAssets = @(
+#            "Square44x44Logo.png",
+#            "Square150x150Logo.png",
+#            "LargeTile.png",
+#            "SmallTile.png",
+#            "StoreLogo.png"
+#          )
+#
+#          foreach ($asset in $requiredAssets) {
+#            $assetPath = "assets/$asset"
+#            if (Test-Path $assetPath) {
+#              Write-Host "$asset exists in assets folder"
+#            } else {
+#              Write-Host "Warning: $asset not found in assets folder. Creating an empty image."
+#              magick convert -size 44x44 xc:transparent $assetPath
+#            }
+#          }
+#
+#          # Display the contents of the assets folder
+#          Write-Host "Contents of assets folder:"
+#          Get-ChildItem -Path "assets" | ForEach-Object { Write-Host "  $($_.Name)" }
 
       - name: Debug - List zed directory contents
         run: |
@@ -205,62 +205,62 @@ jobs:
             Write-Host "Directory contents:"
             Get-ChildItem -Force | Select-Object Name, LastWriteTime, Length
 
-      - name: Update AppxManifest with correct version and tag
-        run: |
-          cd zed
-          $version = $env:LATEST_TAG -replace '^v', ''
-          $versionParts = $version -split '-'
-          $mainVersion = $versionParts[0]
-          
-          # Ensure we have four parts to the version number
-          $versionNumbers = $mainVersion -split '\.'
-          if ($versionNumbers.Length -lt 4) {
-            $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
-          }
-          
-          $content = Get-Content AppxManifest.zed.xml -Raw
-          $content = $content.Replace('__VERSION__', $mainVersion).Replace('__LATEST_TAG__', $env:LATEST_TAG)
-          Set-Content AppxManifest.zed.xml -Value $content -NoNewline
-
-      - name: Prepare App Installer manifest
-        run: |
-          cd zed
-          $version = $env:LATEST_TAG -replace '^v', ''
-          $versionParts = $version -split '-'
-          $mainVersion = $versionParts[0]
-          
-          # Ensure we have four parts to the version number
-          $versionNumbers = $mainVersion -split '\.'
-          if ($versionNumbers.Length -lt 4) {
-            $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
-          }
-          
-          $appInstallerContent = @"
-          <?xml version="1.0" encoding="utf-8"?>
-          <AppInstaller
-            xmlns="http://schemas.microsoft.com/appx/appinstaller/2018"
-            Version="$mainVersion"
-            Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller">
-            
-            <MainPackage
-              Name="Zed"
-              Version="$mainVersion"
-              Publisher="CN=ZedIndustries"
-              Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
-              ProcessorArchitecture="x64" />
-            
-            <UpdateSettings>
-              <OnLaunch HoursBetweenUpdateChecks="0" />
-            </UpdateSettings>
-          </AppInstaller>
-          "@
-          
-          $appInstallerFileName = "Zed-windows-amd64-$env:LATEST_TAG.appinstaller"
-          $appInstallerContent | Out-File -FilePath $appInstallerFileName -Encoding utf8NoBOM
-          Write-Host "Created $appInstallerFileName file"
-          
-          # Verify the content of the .appinstaller file
-          Get-Content $appInstallerFileName
+#      - name: Update AppxManifest with correct version and tag
+#        run: |
+#          cd zed
+#          $version = $env:LATEST_TAG -replace '^v', ''
+#          $versionParts = $version -split '-'
+#          $mainVersion = $versionParts[0]
+#
+#          # Ensure we have four parts to the version number
+#          $versionNumbers = $mainVersion -split '\.'
+#          if ($versionNumbers.Length -lt 4) {
+#            $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
+#          }
+#
+#          $content = Get-Content AppxManifest.zed.xml -Raw
+#          $content = $content.Replace('__VERSION__', $mainVersion).Replace('__LATEST_TAG__', $env:LATEST_TAG)
+#          Set-Content AppxManifest.zed.xml -Value $content -NoNewline
+#
+#      - name: Prepare App Installer manifest
+#        run: |
+#          cd zed
+#          $version = $env:LATEST_TAG -replace '^v', ''
+#          $versionParts = $version -split '-'
+#          $mainVersion = $versionParts[0]
+#
+#          # Ensure we have four parts to the version number
+#          $versionNumbers = $mainVersion -split '\.'
+#          if ($versionNumbers.Length -lt 4) {
+#            $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
+#          }
+#
+#          $appInstallerContent = @"
+#          <?xml version="1.0" encoding="utf-8"?>
+#          <AppInstaller
+#            xmlns="http://schemas.microsoft.com/appx/appinstaller/2018"
+#            Version="$mainVersion"
+#            Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller">
+#
+#            <MainPackage
+#              Name="Zed"
+#              Version="$mainVersion"
+#              Publisher="CN=ZedIndustries"
+#              Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
+#              ProcessorArchitecture="x64" />
+#
+#            <UpdateSettings>
+#              <OnLaunch HoursBetweenUpdateChecks="0" />
+#            </UpdateSettings>
+#          </AppInstaller>
+#          "@
+#
+#          $appInstallerFileName = "Zed-windows-amd64-$env:LATEST_TAG.appinstaller"
+#          $appInstallerContent | Out-File -FilePath $appInstallerFileName -Encoding utf8NoBOM
+#          Write-Host "Created $appInstallerFileName file"
+#
+#          # Verify the content of the .appinstaller file
+#          Get-Content $appInstallerFileName
 
       - name: List directory contents
         working-directory: ./zed
@@ -273,12 +273,12 @@ jobs:
       - name: Prepare and copy artifacts
         run: |
           $sourceExe = "zed\target\release\Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
-          $appInstaller = "zed\Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller"
+          # $appInstaller = "zed\Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller"
 
           # Copy artifacts to root
           if (Test-Path $sourceExe) {
             Copy-Item $sourceExe .
-            Copy-Item $appInstaller .
+            # Copy-Item $appInstaller .
             Write-Host "Copied artifacts to root directory"
           } else {
             Write-Host "Error: Tagged Zed executable not found at $sourceExe"
@@ -291,7 +291,6 @@ jobs:
           name: Zed-windows-amd64-${{ env.LATEST_TAG }}
           path: |
             Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
-            Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
 
       - name: Debug - List uploaded artifacts
         run: |
@@ -356,7 +355,6 @@ jobs:
           prerelease: false
           files: |
             Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
-            Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
