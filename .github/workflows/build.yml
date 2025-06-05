@@ -224,26 +224,27 @@ jobs:
       - name: Update AppxManifest with correct version and tag
         working-directory: ./zed
         run: |
-          $version = $env:LATEST_TAG -replace '^v', ''
-          $versionParts = $version -split '-'
-          $mainVersion = $versionParts[0]
+          # Get version from tag, e.g., v0.190.0-pre -> 0.190.0
+          $versionString = ($env:LATEST_TAG -replace '^v', '').Split('-')[0]
 
-          # Ensure we have four parts to the version number
-          $versionNumbers = $mainVersion -split '\\.'
-          if ($versionNumbers.Length -lt 4) {
-            $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
+          # Split into components
+          $versionComponents = $versionString.Split('.')
+
+          # Pad the array with '0's to ensure it has at least 4 parts
+          while ($versionComponents.Count -lt 4) {
+              $versionComponents += '0'
           }
 
+          # Take only the first 4 parts and join them
+          $finalVersion = $versionComponents[0..3] -join '.'
+
+          # Update the manifest file
           $manifestPath = "AppxManifest.zed.xml"
-          if (-not (Test-Path $manifestPath)) {
-            Write-Host "Error: $manifestPath not found!"
-            exit 1
-          }
           $content = Get-Content $manifestPath -Raw
-          # Assuming Publisher is already correctly set to CN=ZedIndustries in the source AppxManifest.zed.xml
-          $content = $content.Replace('__VERSION__', $mainVersion).Replace('__LATEST_TAG__', $env:LATEST_TAG)
+          $content = $content.Replace('__VERSION__', $finalVersion)
           Set-Content $manifestPath -Value $content -NoNewline
-          Write-Host "Updated AppxManifest.zed.xml with version $mainVersion and tag $env:LATEST_TAG"
+
+          Write-Host "Updated AppxManifest.zed.xml with version $finalVersion"
 
       - name: Rename AppxManifest for Packaging
         shell: pwsh
@@ -279,12 +280,25 @@ jobs:
 
       - name: Package Application to MSIX
         shell: pwsh
-        working-directory: ./zed # Contains AppxManifest.xml, Zed.exe (copied), assets/
         run: |
-          $msixOutputPath = "Zed-windows-amd64-$env:LATEST_TAG.msix"
-          Write-Host "Packaging content of $(Get-Location) into $msixOutputPath"
-          Get-ChildItem . # List files to be packaged
-          makeappx.exe pack /d . /p "$msixOutputPath" /o
+          # Create a staging directory for a clean package at the workspace root
+          $stagingDir = "$env:GITHUB_WORKSPACE/msix-staging"
+          New-Item -ItemType Directory -Path $stagingDir -Force
+
+          # Copy required files to the staging directory
+          Copy-Item -Path "zed/Zed.exe" -Destination $stagingDir
+          Copy-Item -Path "zed/assets" -Destination $stagingDir -Recurse
+          Copy-Item -Path "zed/AppxManifest.xml" -Destination $stagingDir
+
+          $msixOutputPath = "$env:GITHUB_WORKSPACE/zed/Zed-windows-amd64-$env:LATEST_TAG.msix"
+          Write-Host "Packaging content of $stagingDir into $msixOutputPath"
+          
+          # List files to be packaged for debugging
+          Get-ChildItem $stagingDir -Recurse
+
+          # Run makeappx on the clean staging directory
+          makeappx.exe pack /d $stagingDir /p "$msixOutputPath" /o
+
           Write-Host "MSIX package created: $msixOutputPath"
           if (-not (Test-Path $msixOutputPath)) {
             Write-Host "Error: MSIX package not found at $msixOutputPath"
