@@ -64,6 +64,10 @@ jobs:
         with:
           arch: amd64
 
+      - name: Enable Long Paths for Git
+        run: git config --system core.longpaths true
+        shell: bash
+
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
