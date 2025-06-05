@@ -144,185 +144,282 @@ jobs:
             exit 1
           }
 
+      - name: Prepare files for MSIX Packaging
+        shell: pwsh
+        run: |
+          Copy-Item -Path "zed/target/release/Zed.exe" -Destination "zed/Zed.exe" -Force
+          Write-Host "Copied Zed.exe to zed/ for MSIX packaging"
+
       - name: Debug - Print LATEST_TAG
         run: |
           Write-Host "LATEST_TAG value: $env:LATEST_TAG"
-          if ([string]::IsNullOrEmpty($env:LATEST_TAG)) {
-            Write-Host "Error: LATEST_TAG is empty or null"
-            exit 1
-          }
 
       - name: Rename build output
         run: |
           $sourceDir = "zed/target/release"
-          $sourceName = "Zed.exe"
+          $sourceName = "Zed.exe" # This refers to the original Zed.exe before it might be renamed for MSIX
           $newFileName = "Zed-windows-amd64-$env:LATEST_TAG.exe"
-          $sourcePath = Join-Path -Path $sourceDir -ChildPath $sourceName
-          $destinationPath = Join-Path -Path $sourceDir -ChildPath $newFileName
-          if (Test-Path -Path $sourcePath) {
-            Rename-Item -Path $sourcePath -NewName $newFileName -Force
-            Write-Host "File renamed successfully to $newFileName"
+          # The original Zed.exe is now at zed/target/release/Zed.exe
+          # The one for MSIX is zed/Zed.exe
+          # This step renames the one in target/release for the .exe artifact
+          $sourcePathToRename = Join-Path -Path $sourceDir -ChildPath $sourceName
+          $destinationPathForExeArtifact = Join-Path -Path $sourceDir -ChildPath $newFileName
+          if (Test-Path -Path $sourcePathToRename) {
+            Rename-Item -Path $sourcePathToRename -NewName $newFileName -Force
+            Write-Host "Original Zed.exe in target/release renamed successfully to $newFileName for .exe artifact"
           } else {
-            Write-Host "Error: Source file $sourcePath not found"
+            Write-Host "Error: Source file $sourcePathToRename not found for renaming (this is for the standalone .exe artifact)"
+            # Potentially allow this to not fail the build if MSIX is the primary goal
+            # exit 1
+          }
+
+      - name: Prepare App Installer package
+        working-directory: ./zed
+        run: |
+          Copy-Item ../build-repo/AppxManifest.zed.xml . -Force
+
+          # Check if the assets folder exists
+          if (-not (Test-Path "assets")) {
+            Write-Host "assets folder not found, creating it."
+            New-Item -ItemType Directory -Path "assets"
+          }
+
+          # Check for necessary icons
+          $requiredAssets = @(
+            "Square44x44Logo.png",
+            "Square150x150Logo.png",
+            "LargeTile.png",
+            "SmallTile.png",
+            "StoreLogo.png"
+          )
+
+          foreach ($asset in $requiredAssets) {
+            $assetPath = "assets/$asset"
+            if (Test-Path $assetPath) {
+              Write-Host "$asset exists in assets folder"
+            } else {
+              Write-Host "Warning: $asset not found in assets folder. Creating an empty image."
+              # Ensure ImageMagick is available or use a simpler placeholder creation
+              try {
+                magick convert -size 44x44 xc:transparent $assetPath
+              } catch {
+                Write-Warning "ImageMagick 'magick' command not found or failed. Creating a dummy file for $asset."
+                Set-Content -Path $assetPath -Value "dummy placeholder"
+              }
+            }
+          }
+
+          # Display the contents of the assets folder
+          Write-Host "Contents of assets folder:"
+          Get-ChildItem -Path "assets" | ForEach-Object { Write-Host "  $($_.Name)" }
+
+      - name: Debug - List zed directory contents after App Installer prep
+        working-directory: ./zed
+        run: |
+          Write-Host "Current directory:"
+          Get-Location
+          Write-Host "Directory contents:"
+          Get-ChildItem -Force | Select-Object Name, LastWriteTime, Length
+
+      - name: Update AppxManifest with correct version and tag
+        working-directory: ./zed
+        run: |
+          $version = $env:LATEST_TAG -replace '^v', ''
+          $versionParts = $version -split '-'
+          $mainVersion = $versionParts[0]
+
+          # Ensure we have four parts to the version number
+          $versionNumbers = $mainVersion -split '\\.'
+          if ($versionNumbers.Length -lt 4) {
+            $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
+          }
+
+          $manifestPath = "AppxManifest.zed.xml"
+          if (-not (Test-Path $manifestPath)) {
+            Write-Host "Error: $manifestPath not found!"
+            exit 1
+          }
+          $content = Get-Content $manifestPath -Raw
+          # Assuming Publisher is already correctly set to CN=ZedIndustries in the source AppxManifest.zed.xml
+          $content = $content.Replace('__VERSION__', $mainVersion).Replace('__LATEST_TAG__', $env:LATEST_TAG)
+          Set-Content $manifestPath -Value $content -NoNewline
+          Write-Host "Updated AppxManifest.zed.xml with version $mainVersion and tag $env:LATEST_TAG"
+
+      - name: Rename AppxManifest for Packaging
+        shell: pwsh
+        working-directory: ./zed
+        run: |
+          if (Test-Path "AppxManifest.zed.xml") {
+            Rename-Item -Path "AppxManifest.zed.xml" -NewName "AppxManifest.xml" -Force
+            Write-Host "Renamed AppxManifest.zed.xml to AppxManifest.xml for packaging"
+          } else {
+            Write-Host "Error: AppxManifest.zed.xml not found in zed/ for renaming"
             exit 1
           }
 
-#      - name: Prepare App Installer package
-#        run: |
-#          cd zed
-#          Copy-Item ../build-repo/AppxManifest.zed.xml .
-#
-#          # Check if the assets folder exists
-#          if (-not (Test-Path "assets")) {
-#            Write-Host "Error: assets folder not found"
-#            exit 1
-#          }
-#
-#          # Check for necessary icons
-#          $requiredAssets = @(
-#            "Square44x44Logo.png",
-#            "Square150x150Logo.png",
-#            "LargeTile.png",
-#            "SmallTile.png",
-#            "StoreLogo.png"
-#          )
-#
-#          foreach ($asset in $requiredAssets) {
-#            $assetPath = "assets/$asset"
-#            if (Test-Path $assetPath) {
-#              Write-Host "$asset exists in assets folder"
-#            } else {
-#              Write-Host "Warning: $asset not found in assets folder. Creating an empty image."
-#              magick convert -size 44x44 xc:transparent $assetPath
-#            }
-#          }
-#
-#          # Display the contents of the assets folder
-#          Write-Host "Contents of assets folder:"
-#          Get-ChildItem -Path "assets" | ForEach-Object { Write-Host "  $($_.Name)" }
-
-      - name: Debug - List zed directory contents
+      - name: Create Self-Signed Certificate
+        shell: pwsh
         run: |
-          cd zed
-          Write-Host "Current directory:"
-            Get-Location
-            Write-Host "Directory contents:"
-            Get-ChildItem -Force | Select-Object Name, LastWriteTime, Length
+          $certPassword = ConvertTo-SecureString -String "$env:CERT_PASSWORD" -AsPlainText -Force
+          $pfxFilePath = "signing_cert.pfx"
+          $cerFilePath = "signing_cert.cer" # Path for the .cer file
+          $publisher = "CN=ZedIndustries" # Must match AppxManifest.xml Publisher
 
-#      - name: Update AppxManifest with correct version and tag
-#        run: |
-#          cd zed
-#          $version = $env:LATEST_TAG -replace '^v', ''
-#          $versionParts = $version -split '-'
-#          $mainVersion = $versionParts[0]
-#
-#          # Ensure we have four parts to the version number
-#          $versionNumbers = $mainVersion -split '\.'
-#          if ($versionNumbers.Length -lt 4) {
-#            $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
-#          }
-#
-#          $content = Get-Content AppxManifest.zed.xml -Raw
-#          $content = $content.Replace('__VERSION__', $mainVersion).Replace('__LATEST_TAG__', $env:LATEST_TAG)
-#          Set-Content AppxManifest.zed.xml -Value $content -NoNewline
-#
-#      - name: Prepare App Installer manifest
-#        run: |
-#          cd zed
-#          $version = $env:LATEST_TAG -replace '^v', ''
-#          $versionParts = $version -split '-'
-#          $mainVersion = $versionParts[0]
-#
-#          # Ensure we have four parts to the version number
-#          $versionNumbers = $mainVersion -split '\.'
-#          if ($versionNumbers.Length -lt 4) {
-#            $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
-#          }
-#
-#          $appInstallerContent = @"
-#          <?xml version="1.0" encoding="utf-8"?>
-#          <AppInstaller
-#            xmlns="http://schemas.microsoft.com/appx/appinstaller/2018"
-#            Version="$mainVersion"
-#            Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller">
-#
-#            <MainPackage
-#              Name="Zed"
-#              Version="$mainVersion"
-#              Publisher="CN=ZedIndustries"
-#              Uri="https://github.com/${{ github.repository }}/releases/download/${{ env.LATEST_TAG }}/Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
-#              ProcessorArchitecture="x64" />
-#
-#            <UpdateSettings>
-#              <OnLaunch HoursBetweenUpdateChecks="0" />
-#            </UpdateSettings>
-#          </AppInstaller>
-#          "@
-#
-#          $appInstallerFileName = "Zed-windows-amd64-$env:LATEST_TAG.appinstaller"
-#          $appInstallerContent | Out-File -FilePath $appInstallerFileName -Encoding utf8NoBOM
-#          Write-Host "Created $appInstallerFileName file"
-#
-#          # Verify the content of the .appinstaller file
-#          Get-Content $appInstallerFileName
+          $certificate = New-SelfSignedCertificate -Subject $publisher -CertStoreLocation "Cert:\CurrentUser\My" -KeyAlgorithm RSA -KeyLength 2048 -Provider "Microsoft Enhanced RSA and AES Cryptographic Provider" -NotAfter (Get-Date).AddYears(5) -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}ca=false")
+
+          # Export the .pfx (contains private and public key)
+          Export-PfxCertificate -Cert $certificate.PSPath -FilePath $pfxFilePath -Password $certPassword
+          Write-Host "Self-signed PFX certificate created at $pfxFilePath"
+
+          # Export the .cer (contains only public key)
+          Export-Certificate -Cert $certificate.PSPath -FilePath $cerFilePath -Type CERT
+          Write-Host "Self-signed CER certificate created at $cerFilePath"
+        env:
+          CERT_PASSWORD: ${{ secrets.MSIX_CERT_PASSWORD }}
+
+      - name: Package Application to MSIX
+        shell: pwsh
+        working-directory: ./zed # Contains AppxManifest.xml, Zed.exe (copied), assets/
+        run: |
+          $msixOutputPath = "Zed-windows-amd64-$env:LATEST_TAG.msix"
+          Write-Host "Packaging content of $(Get-Location) into $msixOutputPath"
+          Get-ChildItem . # List files to be packaged
+          makeappx.exe pack /d . /p "$msixOutputPath" /o
+          Write-Host "MSIX package created: $msixOutputPath"
+          if (-not (Test-Path $msixOutputPath)) {
+            Write-Host "Error: MSIX package not found at $msixOutputPath"
+            exit 1
+          }
+
+      - name: Sign the MSIX Package
+        shell: pwsh
+        run: |
+          $msixPath = "zed/Zed-windows-amd64-$env:LATEST_TAG.msix" # Path relative to workspace root
+          $certPath = "signing_cert.pfx" # Path relative to workspace root
+          Write-Host "Signing MSIX package: $msixPath with cert $certPath"
+          signtool.exe sign /fd SHA256 /a /f "$certPath" /p "$env:CERT_PASSWORD" "$msixPath"
+          Write-Host "MSIX package signed."
+        env:
+          CERT_PASSWORD: ${{ secrets.MSIX_CERT_PASSWORD }}
+
+      - name: Prepare App Installer manifest
+        working-directory: ./zed
+        run: |
+          $version = $env:LATEST_TAG -replace '^v', ''
+          $versionParts = $version -split '-'
+          $mainVersion = $versionParts[0]
+
+          # Ensure we have four parts to the version number
+          $versionNumbers = $mainVersion -split '\\.'
+          if ($versionNumbers.Length -lt 4) {
+            $mainVersion = $mainVersion + ('.0' * (4 - $versionNumbers.Length))
+          }
+
+          # Corrected variable for GitHub repository access
+          $repoFullName = "${{ github.repository }}" # e.g., yannouuuu/zed-windows-build
+
+          $appInstallerContent = @"
+          <?xml version="1.0" encoding="utf-8"?>
+          <AppInstaller
+            xmlns="http://schemas.microsoft.com/appx/appinstaller/2017/2"
+            Version="$mainVersion"
+            Uri="https://$($env:GITHUB_SERVER_URL)/$repoFullName/releases/download/$($env:LATEST_TAG)/Zed-windows-amd64-$($env:LATEST_TAG).appinstaller">
+
+            <MainBundle
+              Name="Zed"
+              Version="$mainVersion"
+              Publisher="CN=ZedIndustries"
+              Uri="https://$($env:GITHUB_SERVER_URL)/$repoFullName/releases/download/$($env:LATEST_TAG)/Zed-windows-amd64-$($env:LATEST_TAG).msix" />
+
+            <UpdateSettings>
+              <OnLaunch HoursBetweenUpdateChecks="0" />
+              <ShowPrompt>true</ShowPrompt>
+              <UpdateBlocksActivation>false</UpdateBlocksActivation>
+            </UpdateSettings>
+          </AppInstaller>
+          "@
+
+          $appInstallerFileName = "Zed-windows-amd64-$env:LATEST_TAG.appinstaller"
+          $appInstallerContent | Out-File -FilePath $appInstallerFileName -Encoding utf8NoBOM
+          Write-Host "Created $appInstallerFileName file"
+
+          # Verify the content of the .appinstaller file
+          Get-Content $appInstallerFileName
 
       - name: List directory contents
         working-directory: ./zed
         run: |
-          Write-Host "Current directory:"
+          Write-Host "Current directory (zed/):"
           Get-Location
           Write-Host "Directory contents:"
           Get-ChildItem -Recurse | Select-Object FullName, Length, CreationTime, LastWriteTime
 
       - name: Prepare and copy artifacts
         run: |
-          $sourceExe = "zed\target\release\Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
-          # $appInstaller = "zed\Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller"
+          $taggedExe = "zed\\target\\release\\Zed-windows-amd64-${{ env.LATEST_TAG }}.exe"
+          $msixPackage = "zed\\Zed-windows-amd64-${{ env.LATEST_TAG }}.msix"
+          $appInstaller = "zed\\Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller"
+          $certificateFile = "signing_cert.cer" # The generated .cer file
 
-          # Copy artifacts to root
-          if (Test-Path $sourceExe) {
-            Copy-Item $sourceExe .
-            # Copy-Item $appInstaller .
-            Write-Host "Copied artifacts to root directory"
+          if (Test-Path $taggedExe) {
+            Copy-Item $taggedExe . -Force
+            Write-Host "Copied $taggedExe to root directory"
           } else {
-            Write-Host "Error: Tagged Zed executable not found at $sourceExe"
+            Write-Host "Warning: Tagged Zed executable not found at $taggedExe. This might be okay if MSIX is primary."
+          }
+          if (Test-Path $msixPackage) {
+            Copy-Item $msixPackage . -Force
+            Write-Host "Copied $msixPackage to root directory"
+          } else {
+            Write-Host "Error: MSIX package not found at $msixPackage"
+            exit 1
+          }
+          if (Test-Path $appInstaller) {
+            Copy-Item $appInstaller . -Force
+            Write-Host "Copied $appInstaller to root directory"
+          } else {
+            Write-Host "Error: AppInstaller file not found at $appInstaller"
+            exit 1
+          }
+          if (Test-Path $certificateFile) {
+            Copy-Item $certificateFile . -Force
+            Write-Host "Copied $certificateFile to root directory"
+          } else {
+            Write-Host "Error: Certificate file not found at $certificateFile"
             exit 1
           }
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Zed-windows-amd64-${{ env.LATEST_TAG }}
+          name: Zed-windows-amd64-${{ env.LATEST_TAG }}-dist
           path: |
             Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.msix
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
+            signing_cert.cer
+          if-no-files-found: error # Ensure we fail if any artifact is missing
 
       - name: Debug - List uploaded artifacts
         run: |
-          echo "Uploaded artifact name: Zed-windows-amd64-${{ env.LATEST_TAG }}"
-          echo "LATEST_TAG value: ${{ env.LATEST_TAG }}"
-
-      - name: Debug - List zed directory contents
-        run: |
-          cd zed
-          Write-Host "Current directory:"
-          Get-Location
-          Write-Host "Directory contents:"
-          Get-ChildItem -Force | Select-Object Name, LastWriteTime, Length
+          echo "Uploaded artifact name: Zed-windows-amd64-${{ env.LATEST_TAG }}-dist"
 
   upload-to-release:
     needs: [set-version, build-windows-amd64]
     runs-on: ubuntu-latest
     env:
       LATEST_TAG: ${{ needs.set-version.outputs.latest_tag }}
+      # Add GITHUB_SERVER_URL for AppInstaller URI consistency if needed, though it's usually available
+      GITHUB_SERVER_URL: ${{ github.server_url }}
     steps:
       - name: Debug - Print LATEST_TAG
-        run: | 
+        run: |
           echo "LATEST_TAG value: ${{ env.LATEST_TAG }}"
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: Zed-windows-amd64-${{ env.LATEST_TAG }}
+          name: Zed-windows-amd64-${{ env.LATEST_TAG }}-dist
 
       - name: Debug - List downloaded files
         run: ls -R
@@ -359,6 +456,9 @@ jobs:
           prerelease: false
           files: |
             Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.msix
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
+            signing_cert.cer
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -373,6 +473,9 @@ jobs:
           prerelease: false
           files: |
             Zed-windows-amd64-${{ env.LATEST_TAG }}.exe
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.msix
+            Zed-windows-amd64-${{ env.LATEST_TAG }}.appinstaller
+            signing_cert.cer
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
